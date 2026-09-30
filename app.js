@@ -129,7 +129,7 @@ function wireTool(name){
   $("#pdfBtn").onclick=function(){pdfPrint();};
  }else if(name=="JSON Formatter")run.onclick=function(){try{out(JSON.stringify(JSON.parse(a.value),null,2));}catch(e){out("Invalid JSON: "+e.message);}};
  else if(name=="JSON -> CSV")run.onclick=jsonCsv;
- else if(name=="Base64 Encoder"){$("#enc").onclick=function(){try{out(btoa(unescape(encodeURIComponent(a.value)));}catch(e){out("Encoding failed");}};$("#dec").onclick=function(){try{out(decodeURIComponent(escape(atob(a.value))));}catch(e){out("Invalid Base64");}};}
+ else if(name=="Base64 Encoder"){$("#enc").onclick=function(){try{out(btoa(unescape(encodeURIComponent(a.value))));}catch(e){out("Encoding failed");}};$("#dec").onclick=function(){try{out(decodeURIComponent(escape(atob(a.value))));}catch(e){out("Invalid Base64");}};}
  else if(name=="URL Encoder"){$("#enc").onclick=function(){out(encodeURIComponent(a.value));};$("#dec").onclick=function(){try{out(decodeURIComponent(a.value));}catch(e){out("Invalid URL encoding");}};}
  else if(name=="UUID Generator")run.onclick=function(){out(makeUuid());};
  else if(name=="QR Generator")run.onclick=function(){var v=encodeURIComponent(a.value);$("#out").innerHTML='<img alt="QR code" width="260" height="260" src="https://api.qrserver.com/v1/create-qr-code/?size=260x260&data='+v+'">';};
