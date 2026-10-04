@@ -15,7 +15,7 @@ public partial class MainWindow : Window
         Preview.Children.Clear(); if(doc.Paths.Count==0)return;
         var minX=doc.Paths.SelectMany(p=>p.Points).Min(p=>p.X); var minY=doc.Paths.SelectMany(p=>p.Points).Min(p=>p.Y);
         var maxX=doc.Paths.SelectMany(p=>p.Points).Max(p=>p.X); var maxY=doc.Paths.SelectMany(p=>p.Points).Max(p=>p.Y);
-        var w=Math.Max(1,maxX-minX),h=Math.Max(1,maxY-minY); Scale=Math.Min(1000/w,620/h);
+        double w=Math.Max(1,maxX-minX); double h=Math.Max(1,maxY-minY); Scale=Math.Min(1000/w,620/h);
         foreach(var p in doc.Paths)foreach(var s in p.Segments)Preview.Children.Add(new Line{X1=(s.A.X-minX)*Scale,Y1=(maxY-s.A.Y)*Scale,X2=(s.B.X-minX)*Scale,Y2=(maxY-s.B.Y)*Scale,Stroke=Brushes.Black,StrokeThickness=1});
         foreach(var g in doc.Gaps)Preview.Children.Add(new Line{X1=(g.A.X-minX)*Scale,Y1=(maxY-g.A.Y)*Scale,X2=(g.B.X-minX)*Scale,Y2=(maxY-g.B.Y)*Scale,Stroke=Brushes.Red,StrokeThickness=3});
         Preview.Width=w*Scale+20; Preview.Height=h*Scale+20; Status.Text=$"Paths: {doc.Paths.Count} | Bridges: {doc.Gaps.Count}";
