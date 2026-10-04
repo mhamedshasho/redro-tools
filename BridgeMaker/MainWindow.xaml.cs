@@ -8,7 +8,7 @@ namespace RedroBridgeMaker;
 public partial class MainWindow : Window
 {
     DocumentModel doc = new();
-    double Scale=1;
+    double Scale = 1;
     public MainWindow(){InitializeComponent();}
     double V(string s,double d)=>double.TryParse(s,NumberStyles.Float,CultureInfo.InvariantCulture,out var v)?v:d;
     void Draw(){
@@ -24,9 +24,9 @@ public partial class MainWindow : Window
     void Auto_Click(object s,RoutedEventArgs e){if(!doc.Paths.Any())return;doc.Gaps.Clear();BridgeEngine.Automatic(doc,V(BridgeLength.Text,5),V(StartOffset.Text,2),V(EndOffset.Text,2),V(Spacing.Text,100));Draw();}
     void Manual_Click(object s,RoutedEventArgs e){if(!doc.Paths.Any())return;var p=doc.Paths[0];var dist=Prompt("Distance from start (mm)","20");if(dist.HasValue){BridgeEngine.AddAt(p,doc.Gaps,dist.Value,V(BridgeLength.Text,5));Draw();}}
     static double? Prompt(string title,string initial){
-        var w=new Window{Title=title,Width=300,Height=150,WindowStartupLocation=WindowStartupLocation.CenterOwner,ResizeMode=ResizeMode.NoResize};
-        var box=new TextBox{Text=initial,Margin=new Thickness(10)};var ok=new Button{Content="OK",Width=70,IsDefault=true,Margin=new Thickness(10)};
-        var panel=new StackPanel();panel.Children.Add(box);panel.Children.Add(ok);w.Content=panel;double? result=null;ok.Click+=(a,b)=>{if(double.TryParse(box.Text,NumberStyles.Float,CultureInfo.InvariantCulture,out var v)){result=v;w.DialogResult=true;}else MessageBox.Show("Enter a valid distance.");};w.Owner=Application.Current.Windows.OfType<Window>().FirstOrDefault(x=>x.IsActive);w.ShowDialog();return result;
+        Window w=new Window{Title=title,Width=300,Height=150,WindowStartupLocation=WindowStartupLocation.CenterOwner,ResizeMode=ResizeMode.NoResize};
+        TextBox box=new TextBox{Text=initial,Margin=new Thickness(10)};Button ok=new Button{Content="OK",Width=70,IsDefault=true,Margin=new Thickness(10)};
+        StackPanel panel=new StackPanel();panel.Children.Add(box);panel.Children.Add(ok);w.Content=panel;double? result=null;ok.Click+=(a,b)=>{if(double.TryParse(box.Text,NumberStyles.Float,CultureInfo.InvariantCulture,out var v)){result=v;w.DialogResult=true;}else MessageBox.Show("Enter a valid distance.");};w.Owner=Application.Current.Windows.OfType<Window>().FirstOrDefault(x=>x.IsActive);w.ShowDialog();return result;
     }
     void Clear_Click(object s,RoutedEventArgs e){doc.Gaps.Clear();Draw();}
     void Export_Click(object s,RoutedEventArgs e){var d=new SaveFileDialog{Filter="SVG file|*.svg",FileName="bridged-output.svg"};if(d.ShowDialog()!=true)return;SvgExporter.Save(doc,d.FileName);Status.Text="Exported successfully.";}
