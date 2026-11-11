@@ -1,0 +1,38 @@
+# Miscellaneous
+*.class
+*.log
+*.pyc
+.DS_Store
+.atom/
+.buildlog/
+.history/
+.svn/
+
+# IntelliJ
+*.iml
+*.ipr
+*.iws
+.idea/
+
+# VS Code
+.vscode/
+
+# Flutter/Dart
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.pub-cache/
+.pub/
+build/
+coverage/
+
+# Android
+/android/.gradle/
+/android/captures/
+/android/local.properties
+/android/**/key.properties
+/android/**.jks
+/android/**.keystore
+
+# Windows build output
+/windows/flutter/ephemeral/
