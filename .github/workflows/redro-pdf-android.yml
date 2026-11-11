@@ -36,10 +36,23 @@ jobs:
           rm -f test/widget_test.dart
       - name: Install Android API 36
         run: |
+          sdkmanager_path="$(command -v sdkmanager || true)"
+          if [ -z "$sdkmanager_path" ]; then
+            sdk_root="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-}}"
+            if [ -z "$sdk_root" ] || [ ! -d "$sdk_root/cmdline-tools" ]; then
+              echo "Android SDK command-line tools were not found." >&2
+              exit 1
+            fi
+            sdkmanager_path="$(find "$sdk_root/cmdline-tools" -type f -name sdkmanager -print -quit)"
+          fi
+          if [ -z "$sdkmanager_path" ] || [ ! -x "$sdkmanager_path" ]; then
+            echo "sdkmanager could not be located in the installed Android SDK." >&2
+            exit 1
+          fi
           set +o pipefail
-          yes | sdkmanager --licenses >/dev/null
+          yes | "$sdkmanager_path" --licenses >/dev/null
           set -o pipefail
-          sdkmanager --install "platforms;android-36" "build-tools;36.0.0"
+          "$sdkmanager_path" --install "platforms;android-36" "build-tools;36.0.0"
       - name: Set and verify Android compile SDK
         working-directory: mobile
         run: |
