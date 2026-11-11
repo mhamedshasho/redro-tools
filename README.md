@@ -1,50 +1,45 @@
-# Redro PDF Editor & Converter
+# Redro PDF
 
-A lightweight, offline-first PDF application for Android and Windows.
+Redro PDF is an offline-first Flutter application foundation for reading local PDF files on Android and Windows. The current branch delivers a reader milestone, not the full editor/converter described by the long-term project name.
 
-## Product direction
+## Implemented in this branch
 
-- **Android:** signed APK with in-app release checking and user-approved updates.
-- **Windows:** portable release package (EXE plus its required runtime files), no installer required.
-- **Offline-first:** PDF viewing, editing and local file operations work without an internet connection. Internet is only needed to check/download updates.
-- **Languages:** Arabic and English, with correct RTL/LTR layout and mixed-script text handling.
-- **Design:** simple, adaptive interface for phones and desktop screens; Redro red, charcoal and black identity with light/dark themes.
+- Open a local PDF using the platform file picker; the application validates that the selected path exists and is non-empty, then relies on the PDF renderer to parse it.
+- Keep multiple PDF documents open in tabs, switch among them, and close a tab without deleting or modifying its source file.
+- Navigate to the previous or next page and enter a page number.
+- Pinch-to-zoom on Android. Windows uses the standard `pdfx` page viewer because its pinch viewer is not supported on Windows.
+- Switch between English and Arabic interface labels and LTR/RTL layout.
+- Switch between light and dark appearance.
+- Keep document processing local. The app contains no account, document upload, or cloud-storage flow.
 
-## Core features
+The app currently does not edit or save PDFs. In particular, highlights, annotations, text selection, signatures, page rotation/reordering/extraction/deletion, merging/splitting, PDF-to-DOCX/XLSX, OCR, in-app updates, and persisted preferences are not implemented. No controls claim to provide these features.
 
-1. Open and view local PDF files.
-2. Add, edit, remove and save persistent highlights, with multiple colors.
-3. Add annotations, text notes, drawings and signatures.
-4. Organize pages: rotate, reorder, extract, delete, split and merge.
-5. Convert PDF to editable DOCX and XLSX where the source structure permits reliable reconstruction.
-6. OCR for scanned Arabic and English documents, subject to on-device engine support.
-7. Export and verify the resulting files without uploading documents.
+## Build and test locally
 
-## Quality requirements
+Install Flutter stable and the Android SDK or Windows desktop toolchain. From `mobile/`, run:
 
-- Never report a conversion or save as successful until the output file has been created and checked.
-- Preserve the original file unless the user explicitly chooses to overwrite it.
-- Test Arabic RTL, English LTR, mixed Arabic/English, tables, scanned pages, large files and malformed PDFs.
-- Keep user data and settings across application updates.
-- Do not ship placeholder buttons or claim unsupported editing capabilities.
-- Target package size: approximately 99 MB, measured from actual release artifacts. This is a target, not a promise that overrides correctness.
+```sh
+flutter pub get
+flutter analyze
+flutter test
+```
 
-## Builds and releases
+For Android, the CI workflow creates the platform scaffold, installs Android API 36, and builds an installable **debug** APK. For Windows, CI creates the platform scaffold, builds the Release directory, verifies its runtime files, and creates a portable ZIP. Download artifacts from the repository's [Actions runs](https://github.com/mhamedshasho/redro-tools/actions).
 
-GitHub Actions will build Android APK and Windows portable artifacts. Windows portable delivery is a ZIP containing the EXE and required Flutter runtime files; a lone EXE is not sufficient for a normal Flutter desktop build. GitHub Releases will host versioned downloads and release notes.
+## CI and artifacts
 
-Android updates must use the same application ID and signing key as the installed build. Android will always require the user's approval to install an APK update. The app can request Chrome specifically when Chrome is installed, with a safe system-browser fallback.
+Pushes that modify `mobile/**` or either workflow run the relevant validation. Both jobs run Flutter analysis and automated widget tests. Android CI verifies that the APK is present and non-empty before upload. Windows CI verifies that the ZIP contains the executable, Flutter runtime DLL, and ICU data file before upload.
 
-## Development status
+These are CI artifacts, not GitHub Releases. The Android artifact is debug-signed and is not suitable as a stable signed release/update channel. A release signing key and an explicit release workflow are still needed. The Windows ZIP has not been launch-tested on a separate Windows machine as part of this task.
 
-Initial planning branch: `redro-pdf-mvp`
+## Application identity
 
-The first milestone is a stable PDF test build: open local PDFs, navigate pages, highlight selected text, save annotations, reopen the exported PDF, and verify Arabic/English rendering. Conversion and OCR will be added only after the PDF editing foundation is validated.
+The generated Android application ID is `com.redro.redro_pdf`, and its display name is `Redro PDF`. Keep this application ID unchanged for any compatible future release. A debug signing key is generated by CI and is not a stable release signing key.
+
+## Current verification limits
+
+Widget tests cover the start screen, language/direction switching, and light/dark switching. They do not open real PDFs. No Android-device, Windows-desktop launch, Arabic/mixed-script document, large document, password-protected document, damaged document, scanned document, save/reopen, or memory test has been completed. See [the acceptance checklist](docs/MVP_ACCEPTANCE_CHECKLIST.md) for the current status.
 
 ## Privacy
 
-Documents are processed locally. No account or cloud upload is required for core functionality.
-
-## License
-
-To be finalized after the document-processing dependencies and their licenses are reviewed.
+The reader opens local file paths and has no document upload code. This is not a claim that files are encrypted, that temporary platform storage is securely erased, or that every third-party dependency has undergone an independent privacy audit.

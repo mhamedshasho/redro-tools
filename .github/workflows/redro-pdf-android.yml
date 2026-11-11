@@ -6,9 +6,17 @@ on:
     paths:
       - "mobile/**"
       - ".github/workflows/redro-pdf-android.yml"
+  pull_request:
+    paths:
+      - "mobile/**"
+      - ".github/workflows/redro-pdf-android.yml"
 
 permissions:
   contents: read
+
+concurrency:
+  group: redro-pdf-android-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   build:
@@ -17,46 +25,93 @@ jobs:
       - uses: actions/checkout@v4
       - uses: subosito/flutter-action@v2
         with:
-          channel: stable
+          flutter-version: "3.47.9"
           cache: true
+      - name: Show Flutter version
+        run: flutter --version
       - name: Generate Android platform scaffolding
         working-directory: mobile
         run: |
           flutter create --platforms=android --project-name=redro_pdf --org=com.redro --no-pub .
           rm -f test/widget_test.dart
-      - name: Set Android compile SDK
+      - name: Install Android API 36
+        run: |
+          set +o pipefail
+          yes | sdkmanager --licenses >/dev/null
+          set -o pipefail
+          sdkmanager --install "platforms;android-36" "build-tools;36.0.0"
+      - name: Set and verify Android compile SDK
         working-directory: mobile
         run: |
           python3 - <<'PY'
           from pathlib import Path
-          path = Path("android/app/build.gradle.kts")
-          if path.exists():
-              source = path.read_text()
-              source = source.replace("compileSdk = flutter.compileSdkVersion", "compileSdk = 36")
-              path.write_text(source)
+          import re
+
+          kotlin = Path("android/app/build.gradle.kts")
+          groovy = Path("android/app/build.gradle")
+          if kotlin.exists():
+              source = kotlin.read_text()
+              updated, count = re.subn(
+                  r"(?m)^(\s*compileSdk\s*=\s*).+$",
+                  r"\g<1>36",
+                  source,
+                  count=1,
+              )
+              path = kotlin
+              expected = r"(?m)^\s*compileSdk\s*=\s*36\s*$"
+          elif groovy.exists():
+              source = groovy.read_text()
+              updated, count = re.subn(
+                  r"(?m)^(\s*compileSdkVersion\s+).+$",
+                  r"\g<1>36",
+                  source,
+                  count=1,
+              )
+              path = groovy
+              expected = r"(?m)^\s*compileSdkVersion\s+36\s*$"
           else:
-              path = Path("android/app/build.gradle")
-              source = path.read_text()
-              source = source.replace("compileSdkVersion flutter.compileSdkVersion", "compileSdkVersion 36")
-              path.write_text(source)
+              raise SystemExit("Generated Android app Gradle file is missing.")
+          if count != 1 or not re.search(expected, updated):
+              raise SystemExit(f"Unable to set compileSdk 36 in {path}.")
+          path.write_text(updated)
+          print(f"Verified compileSdk 36 in {path}")
+          PY
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          for path in [Path("android/app/src/main/AndroidManifest.xml")]:
+              if path.exists():
+                  text = path.read_text()
+                  text = re.sub(r'android:label="[^"]+"', 'android:label="Redro PDF"', text, count=1)
+                  path.write_text(text)
           PY
       - name: Install dependencies
         working-directory: mobile
         run: flutter pub get
+      - name: Upload resolved dependency lockfile
+        uses: actions/upload-artifact@v4
+        with:
+          name: redro-pdf-dependency-lock
+          path: mobile/pubspec.lock
+          if-no-files-found: error
+          retention-days: 30
       - name: Static analysis
         working-directory: mobile
         run: flutter analyze
-      - name: Run widget tests
+      - name: Run automated tests
         working-directory: mobile
         run: flutter test
       - name: Build installable debug APK
         working-directory: mobile
         run: flutter build apk --debug
       - name: Verify APK output
-        run: test -s mobile/build/app/outputs/flutter-apk/app-debug.apk
+        run: |
+          test -s mobile/build/app/outputs/flutter-apk/app-debug.apk
+          test "$(stat -c%s mobile/build/app/outputs/flutter-apk/app-debug.apk)" -gt 100000
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: redro-pdf-android-debug
           path: mobile/build/app/outputs/flutter-apk/app-debug.apk
           if-no-files-found: error
+          retention-days: 30

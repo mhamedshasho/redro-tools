@@ -1,59 +1,44 @@
-# Redro PDF — MVP acceptance checklist
+# Redro PDF — implementation and verification status
 
-## Current implementation snapshot
+This checklist distinguishes features present in source from requirements actually validated. An implemented UI path is not proof of platform runtime correctness.
 
-- [x] Flutter application entry point and adaptive Material interface foundation.
-- [x] Local PDF file picker integration.
-- [x] PDF viewing surface with pinch zoom.
-- [x] English and Arabic interface labels with RTL direction switching.
-- [x] Light/dark theme switching.
-- [x] Android and Windows CI build definitions.
-- [ ] CI build has completed successfully and generated downloadable artifacts.
-- [ ] Device-level PDF compatibility tests completed.
-- [ ] Persistent PDF annotations implemented and verified.
+## Current reader milestone
 
-The checked items above indicate code has been added to the branch; they are not a claim that a release build or device test has passed.
+- [x] Flutter app shell branded Redro PDF.
+- [x] Local PDF selection and non-empty file check before parsing.
+- [x] Multiple document tabs with switch and close controls.
+- [x] PDF viewer selected by platform: Android pinch viewer; Windows standard viewer.
+- [x] Page count, previous/next, and direct page number navigation.
+- [x] English/Arabic copy and LTR/RTL layout toggle.
+- [x] Light/dark appearance toggle.
+- [x] No editing or conversion controls presented as working.
+- [x] Android/Windows CI workflows run analysis and widget tests and validate artifact contents.
+- [ ] Latest workflows have passed for the repaired commit and artifacts have been downloaded/reviewed.
+- [ ] Open a real PDF in Android and Windows runtime environments.
+- [ ] Confirm Arabic, English, and mixed-direction PDF rendering.
+- [ ] Verify large, many-page, damaged, encrypted/password-protected and scanned PDFs.
+- [ ] Measure memory use and check for UI freezes on representative large files.
+- [ ] Verify source files remain unchanged after viewing.
 
-## First test build
+## Not implemented
 
-- [ ] Launches on supported Android devices and Windows 10/11.
-- [ ] Opens a PDF selected from local storage.
-- [ ] Renders Arabic, English and mixed-direction pages correctly.
-- [ ] Page navigation, zoom, fit-to-width and rotation work.
-- [ ] Text selection works on selectable-text PDFs.
-- [ ] Highlight tool supports at least yellow, green, blue and pink.
-- [ ] Highlights remain after saving, closing and reopening the exported PDF.
-- [ ] Original input remains unchanged unless overwrite is explicitly selected.
-- [ ] Large documents do not freeze the interface; rendering is incremental.
-- [ ] Clear error messages for password-protected, damaged and unsupported PDFs.
-- [ ] No network request is needed to open, view, annotate or save a local PDF.
+- [ ] Selectable text and text search.
+- [ ] Persistent highlight/underline/strike-through annotations and edit/remove actions.
+- [ ] Text boxes, notes, freehand drawing, and signatures.
+- [ ] Save edited PDF, reopen it, and verify embedded changes.
+- [ ] Rotate, reorder, extract, delete, merge, or split pages.
+- [ ] Genuine PDF-to-DOCX or PDF-to-XLSX conversion.
+- [ ] Local OCR for Arabic and English scanned documents.
+- [ ] Persist language/theme settings across relaunch.
+- [ ] In-app GitHub Release version check, download, and user-approved update handoff.
+- [ ] Stable Android release signing key and a release APK.
+- [ ] Windows launch test on a separate Windows host.
+- [ ] Versioned GitHub Releases and checksums.
 
-## Conversion milestone
+## Build artifacts
 
-- [ ] PDF to DOCX creates a real editable DOCX package.
-- [ ] PDF to XLSX creates a real editable XLSX workbook.
-- [ ] Tables are mapped into rows and columns where structure can be detected.
-- [ ] Reading order and RTL paragraphs are preserved where possible.
-- [ ] Scanned PDFs are identified and routed through OCR rather than silently producing empty files.
-- [ ] Conversion quality limitations are shown to the user.
-- [ ] Output files are reopened/validated before success is reported.
+Android CI currently produces an installable debug APK. The debug key is not a stable release key, so it is not an appropriate foundation for signing future update APKs. Windows CI creates a ZIP of the Release output and checks for the executable, Flutter runtime DLL, and ICU data. A successful packaging check does not by itself prove that the application launches or can open PDFs on a Windows device.
 
-## Release and update milestone
+## Privacy/testing boundary
 
-- [ ] GitHub Actions builds signed Android APK and Windows portable ZIP.
-- [ ] Android package ID and signing key are stable across releases.
-- [ ] In-app update check reads the latest GitHub Release.
-- [ ] Download opens Chrome when available, otherwise the system browser.
-- [ ] APK update is user-approved by Android and preserves app data.
-- [ ] Windows update replaces application binaries safely and preserves user data.
-- [ ] SHA-256 checksums are published for release assets.
-
-## Non-functional requirements
-
-- Simple interface with no dense toolbars on phones.
-- Adaptive phone and desktop layouts.
-- Arabic and English UI with proper RTL/LTR switching.
-- Dark and light themes.
-- No placeholder controls.
-- No silent data loss.
-- Measure actual APK and Windows ZIP sizes; target approximately 99 MB without removing essential functionality.
+The app source has no PDF upload flow. This has not been validated with a network-monitoring test or an independent audit of transitive dependencies. Local processing does not imply encryption at rest or secure deletion.

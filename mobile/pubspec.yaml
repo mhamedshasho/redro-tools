@@ -1,5 +1,5 @@
 name: redro_pdf
-description: Redro PDF Editor & Converter
+description: Redro PDF — local PDF reader foundation for Android and Windows.
 publish_to: "none"
 version: 0.1.0+1
 
@@ -10,8 +10,8 @@ dependencies:
   flutter:
     sdk: flutter
   cupertino_icons: ^1.0.8
-  file_picker: ^8.1.2
-  pdfx: ^2.6.0
+  file_picker: ^13.3.3
+  pdfx: ^2.11.0
 
 dev_dependencies:
   flutter_test:
