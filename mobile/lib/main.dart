@@ -328,7 +328,7 @@ class _PdfHomePageState extends State<PdfHomePage> {
         allowedExtensions: const ['pdf'],
         bytes: Uint8List.fromList(bytes),
       );
-      if (savedPath == null || savedPath.isEmpty) return;
+      if (savedPath == null) return;
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(_text(
