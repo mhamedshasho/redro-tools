@@ -26,11 +26,17 @@ flutter test
 
 For Android, the CI workflow creates the platform scaffold, installs Android API 36, and builds an installable **debug** APK. For Windows, CI creates the platform scaffold, builds the Release directory, verifies its runtime files, and creates a portable ZIP. Download artifacts from the repository's [Actions runs](https://github.com/mhamedshasho/redro-tools/actions).
 
+## Install from CI artifacts
+
+On Android, download `app-debug.apk` from a successful Android Actions run, copy it to the device if needed, open it, and approve Android's install prompt. This is a debug-signed test build. CI does not use a stable release key, so a later APK may not install as an in-place update; uninstalling a previous debug build may be necessary.
+
+On Windows, download `redro-pdf-windows-portable.zip`, extract the entire archive, and launch `redro_pdf.exe` from the extracted folder. Keep the DLLs and `data/` folder beside the executable. There is no installer or setup wizard. If Windows reports a missing Visual C++ runtime, install the Microsoft Visual C++ 2015–2022 Redistributable for x64.
+
 ## CI and artifacts
 
-Pushes that modify `mobile/**` or either workflow run the relevant validation. Both jobs run Flutter analysis and automated widget tests. Android CI verifies that the APK is present and non-empty before upload. Windows CI verifies that the ZIP contains the executable, Flutter runtime DLL, and ICU data file before upload.
+Pushes that modify `mobile/**` or either workflow run the relevant validation. Both jobs run Flutter analysis and automated widget tests. Android CI verifies that the APK is present and non-empty before upload. Windows CI verifies the portable ZIP contents and starts the packaged app for a short launch smoke test. The successful locked-dependency runs for commit `d5c6621` are [Android](https://github.com/mhamedshasho/redro-tools/actions/runs/43078366159) and [Windows](https://github.com/mhamedshasho/redro-tools/actions/runs/43078366065).
 
-These are CI artifacts, not GitHub Releases. The Android artifact is debug-signed and is not suitable as a stable signed release/update channel. A release signing key and an explicit release workflow are still needed. The Windows ZIP has not been launch-tested on a separate Windows machine as part of this task.
+These are CI artifacts, not GitHub Releases. The Android artifact is debug-signed and is not suitable as a stable signed release/update channel. A release signing key and an explicit release workflow are still needed. The Windows app passed a startup smoke test on GitHub's hosted runner, but has not been launch-tested on an independent Windows machine or tested there with a real PDF.
 
 ## Application identity
 
@@ -38,7 +44,7 @@ The generated Android application ID is `com.redro.redro_pdf`, and its display n
 
 ## Current verification limits
 
-Widget tests cover the start screen, language/direction switching, and light/dark switching. They do not open real PDFs. No Android-device, Windows-desktop launch, Arabic/mixed-script document, large document, password-protected document, damaged document, scanned document, save/reopen, or memory test has been completed. See [the acceptance checklist](docs/MVP_ACCEPTANCE_CHECKLIST.md) for the current status.
+Widget tests cover the start screen, language/direction switching, and light/dark switching. They do not open real PDFs. No Android-device installation or PDF-open test, real-PDF open test on Windows, Arabic/mixed-script document test, large document test, password-protected or damaged document test, scanned document test, save/reopen test, or memory test has been completed. See [the acceptance checklist](docs/MVP_ACCEPTANCE_CHECKLIST.md) for the current status.
 
 ## Privacy
 

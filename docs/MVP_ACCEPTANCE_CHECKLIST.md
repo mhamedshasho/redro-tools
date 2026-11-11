@@ -13,7 +13,9 @@ This checklist distinguishes features present in source from requirements actual
 - [x] Light/dark appearance toggle.
 - [x] No editing or conversion controls presented as working.
 - [x] Android/Windows CI workflows run analysis and widget tests and validate artifact contents.
-- [ ] Latest workflows have passed for the repaired commit and artifacts have been downloaded/reviewed.
+- [x] Android and Windows workflows passed for locked-dependency commit `d5c6621`; both artifact uploads succeeded ([Android run](https://github.com/mhamedshasho/redro-tools/actions/runs/43078366159), [Windows run](https://github.com/mhamedshasho/redro-tools/actions/runs/43078366065)).
+- [x] Windows portable ZIP downloaded and inspected; Android APK archive validated from a successful build of the same app source and dependency resolution.
+- [x] Windows executable stayed running through the five-second startup smoke test on the hosted CI runner.
 - [ ] Open a real PDF in Android and Windows runtime environments.
 - [ ] Confirm Arabic, English, and mixed-direction PDF rendering.
 - [ ] Verify large, many-page, damaged, encrypted/password-protected and scanned PDFs.
@@ -38,6 +40,8 @@ This checklist distinguishes features present in source from requirements actual
 ## Build artifacts
 
 Android CI currently produces an installable debug APK. The debug key is not a stable release key, so it is not an appropriate foundation for signing future update APKs. Windows CI creates a ZIP of the Release output and checks for the executable, Flutter runtime DLL, and ICU data. A successful packaging check does not by itself prove that the application launches or can open PDFs on a Windows device.
+
+The Windows process-startup smoke test passed on the hosted runner. It does not exercise PDF selection or rendering. CI analysis and widget tests passed, but the widget suite only covers the start screen, language/direction switching, and theme switching.
 
 ## Privacy/testing boundary
 
