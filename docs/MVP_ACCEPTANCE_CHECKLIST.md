@@ -1,24 +1,24 @@
 # Redro PDF — implementation and verification status
 
-This checklist distinguishes features present in source from requirements actually validated. An implemented UI path is not proof of platform runtime correctness.
+This checklist distinguishes features present in source from requirements validated by CI or a real device. A UI path is not proof of platform runtime correctness.
 
 ## Current reader milestone
 
 - [x] Flutter app shell branded Redro PDF.
 - [x] Local PDF selection and non-empty file check before parsing.
 - [x] Multiple document tabs with switch and close controls.
-- [x] PDF viewer selected by platform: Android pinch viewer; Windows standard viewer.
-- [x] Page count, previous/next, and direct page number navigation.
+- [x] Android pinch viewer; Windows standard viewer.
+- [x] Page count, previous/next, and direct page-number navigation.
 - [x] English/Arabic copy and LTR/RTL layout toggle.
 - [x] Light/dark appearance toggle.
 - [x] No editing or conversion controls presented as working.
-- [x] Android/Windows CI workflows run analysis and widget tests and validate artifact contents.
-- [x] Android and Windows workflows passed for locked-dependency commit `d5c6621`; both artifact uploads succeeded ([Android run](https://github.com/mhamedshasho/redro-tools/actions/runs/43078366159), [Windows run](https://github.com/mhamedshasho/redro-tools/actions/runs/43078366065)).
-- [x] Windows portable ZIP downloaded and inspected; Android APK archive validated from a successful build of the same app source and dependency resolution.
-- [x] Windows executable stayed running through the five-second startup smoke test on the hosted CI runner.
-- [ ] Open a real PDF in Android and Windows runtime environments.
+- [x] Android/Windows CI analysis and widget tests pass on commit `5df7186`: [Android run](https://github.com/mhamedshasho/redro-tools/actions/runs/43080853686), [Windows run](https://github.com/mhamedshasho/redro-tools/actions/runs/43080853344).
+- [x] Android CI builds three optimized release-mode APKs split by ABI and enforces a size below 100 MB per APK.
+- [x] Windows ZIP contents checked, and executable remained running through a five-second smoke test on the hosted CI runner.
+- [ ] Install an APK and open a real PDF on an Android device.
+- [ ] Open a real PDF on an independent Windows host.
 - [ ] Confirm Arabic, English, and mixed-direction PDF rendering.
-- [ ] Verify large, many-page, damaged, encrypted/password-protected and scanned PDFs.
+- [ ] Verify large, many-page, damaged, encrypted/password-protected, and scanned PDFs.
 - [ ] Measure memory use and check for UI freezes on representative large files.
 - [ ] Verify source files remain unchanged after viewing.
 
@@ -32,17 +32,13 @@ This checklist distinguishes features present in source from requirements actual
 - [ ] Genuine PDF-to-DOCX or PDF-to-XLSX conversion.
 - [ ] Local OCR for Arabic and English scanned documents.
 - [ ] Persist language/theme settings across relaunch.
-- [ ] In-app GitHub Release version check, download, and user-approved update handoff.
-- [ ] Stable Android release signing key and a release APK.
-- [ ] Windows launch test on a separate Windows host.
-- [ ] Versioned GitHub Releases and checksums.
+- [ ] In-app version check, download, and user-approved update handoff.
+- [ ] Stable Android release signing key and versioned GitHub Release.
 
 ## Build artifacts
 
-Android CI currently produces an installable debug APK. The debug key is not a stable release key, so it is not an appropriate foundation for signing future update APKs. Windows CI creates a ZIP of the Release output and checks for the executable, Flutter runtime DLL, and ICU data. A successful packaging check does not by itself prove that the application launches or can open PDFs on a Windows device.
-
-The Windows process-startup smoke test passed on the hosted runner. It does not exercise PDF selection or rendering. CI analysis and widget tests passed, but the widget suite only covers the start screen, language/direction switching, and theme switching.
+The Android workflow produces one APK per ABI. CI-reported sizes are 14,416,087 bytes for `armeabi-v7a`, 17,062,271 bytes for `arm64-v8a`, and 18,570,121 bytes for `x86_64`. Each passed the 100 MB cap and was uploaded in the [`redro-pdf-android-release-split` artifact](https://github.com/mhamedshasho/redro-tools/actions/runs/43080853686). The APKs are optimized release-mode builds signed with an ephemeral CI debug key—not a stable update-signing identity. Windows CI packages the Release output and verifies runtime files; its startup smoke test does not test PDF selection or rendering.
 
 ## Privacy/testing boundary
 
-The app source has no PDF upload flow. This has not been validated with a network-monitoring test or an independent audit of transitive dependencies. Local processing does not imply encryption at rest or secure deletion.
+The app source has no PDF upload flow. This has not been validated with network monitoring or an independent audit of transitive dependencies. Local processing does not imply encryption at rest or secure deletion.

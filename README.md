@@ -1,20 +1,33 @@
 # Redro PDF
 
-Redro PDF is an offline-first Flutter application foundation for reading local PDF files on Android and Windows. The current branch delivers a reader milestone, not the full editor/converter described by the long-term project name.
+Redro PDF is an offline-first Flutter application foundation for reading local PDF files on Android and Windows. This branch delivers a reader milestone, not the full editor/converter described by the long-term project name.
 
-## Implemented in this branch
+## Implemented
 
-- Open a local PDF using the platform file picker; the application validates that the selected path exists and is non-empty, then relies on the PDF renderer to parse it.
-- Keep multiple PDF documents open in tabs, switch among them, and close a tab without deleting or modifying its source file.
-- Navigate to the previous or next page and enter a page number.
-- Pinch-to-zoom on Android. Windows uses the standard `pdfx` page viewer because its pinch viewer is not supported on Windows.
-- Switch between English and Arabic interface labels and LTR/RTL layout.
-- Switch between light and dark appearance.
-- Keep document processing local. The app contains no account, document upload, or cloud-storage flow.
+- Open a local PDF using the platform file picker; validate that the selected path exists and is non-empty before parsing.
+- Keep multiple PDFs open in tabs, switch among them, and close a tab without changing the source file.
+- Navigate pages using previous/next controls or a page number.
+- Pinch-to-zoom on Android. Windows uses the standard `pdfx` page viewer because its pinch viewer is not supported there.
+- Switch English/Arabic interface labels and LTR/RTL direction, plus light/dark appearance.
+- Process files locally; the app has no account, upload, or cloud-storage flow.
 
-The app currently does not edit or save PDFs. In particular, highlights, annotations, text selection, signatures, page rotation/reordering/extraction/deletion, merging/splitting, PDF-to-DOCX/XLSX, OCR, in-app updates, and persisted preferences are not implemented. No controls claim to provide these features.
+PDF editing/saving is not implemented. Highlights, annotations, text selection, signatures, page operations, merge/split, PDF-to-DOCX/XLSX, OCR, in-app updates, and persisted preferences are not available. No controls claim to perform these actions.
 
-## Build and test locally
+## Install from CI artifacts
+
+Download the `redro-pdf-android-release-split` artifact from the successful [Android Actions run](https://github.com/mhamedshasho/redro-tools/actions/runs/43080853686). Extract the artifact and install **one** APK that matches the device:
+
+| APK | CI size | Use |
+|---|---:|---|
+| `app-arm64-v8a-release.apk` | 17,062,271 bytes (about 17.1 MB) | Most current Android phones/tablets |
+| `app-armeabi-v7a-release.apk` | 14,416,087 bytes (about 14.4 MB) | 32-bit ARM devices |
+| `app-x86_64-release.apk` | 18,570,121 bytes (about 18.6 MB) | x86_64 devices/emulators |
+
+Copy the chosen APK to the device if needed, open it, and approve Android's install prompt. These are optimized release-mode builds, but CI signs them with an ephemeral debug key. They are not a stable update channel; installing a later build over an earlier one may require uninstalling the earlier build first. The artifact is retained by GitHub Actions for 30 days.
+
+For Windows, download `redro-pdf-windows-portable.zip` from the successful [Windows Actions run](https://github.com/mhamedshasho/redro-tools/actions/runs/43080853344), extract the entire archive, and launch `redro_pdf.exe`. Keep the DLLs and `data/` folder beside the executable. There is no installer or setup wizard. If Windows reports a missing Visual C++ runtime, install the Microsoft Visual C++ 2015–2022 Redistributable for x64.
+
+## Build, test, and CI
 
 Install Flutter stable and the Android SDK or Windows desktop toolchain. From `mobile/`, run:
 
@@ -24,28 +37,12 @@ flutter analyze
 flutter test
 ```
 
-For Android, the CI workflow creates the platform scaffold, installs Android API 36, and builds an installable **debug** APK. For Windows, CI creates the platform scaffold, builds the Release directory, verifies its runtime files, and creates a portable ZIP. Download artifacts from the repository's [Actions runs](https://github.com/mhamedshasho/redro-tools/actions).
+Android CI runs `flutter build apk --release --split-per-abi`, checks that all three APKs are below 100 MB, and uploads them as one artifact. The successful Android and Windows workflows for commit `5df7186` are [Android](https://github.com/mhamedshasho/redro-tools/actions/runs/43080853686) and [Windows](https://github.com/mhamedshasho/redro-tools/actions/runs/43080853344). Windows CI also checks the portable ZIP and starts the packaged executable for a five-second smoke test.
 
-## Install from CI artifacts
+The Android application ID is `com.redro.redro_pdf` and the launcher label is `Redro PDF`. Do not change the application ID for a compatible upgrade. No stable Android signing key or versioned GitHub Release has been configured.
 
-On Android, download `app-debug.apk` from a successful Android Actions run, copy it to the device if needed, open it, and approve Android's install prompt. This is a debug-signed test build. CI does not use a stable release key, so a later APK may not install as an in-place update; uninstalling a previous debug build may be necessary.
+## Verification limits
 
-On Windows, download `redro-pdf-windows-portable.zip`, extract the entire archive, and launch `redro_pdf.exe` from the extracted folder. Keep the DLLs and `data/` folder beside the executable. There is no installer or setup wizard. If Windows reports a missing Visual C++ runtime, install the Microsoft Visual C++ 2015–2022 Redistributable for x64.
+Widget tests cover the start screen, language/direction switching, and light/dark switching; they do not open a real PDF. The Windows startup smoke test ran on GitHub's hosted runner, not a separate end-user machine. No Android-device installation, real-PDF viewing, Arabic/mixed-script document, large/encrypted/damaged/scanned PDF, save/reopen, or memory test has been completed. The app has not been network-monitored or independently privacy-audited; local processing does not imply encryption at rest or secure deletion.
 
-## CI and artifacts
-
-Pushes that modify `mobile/**` or either workflow run the relevant validation. Both jobs run Flutter analysis and automated widget tests. Android CI verifies that the APK is present and non-empty before upload. Windows CI verifies the portable ZIP contents and starts the packaged app for a short launch smoke test. The successful locked-dependency runs for commit `d5c6621` are [Android](https://github.com/mhamedshasho/redro-tools/actions/runs/43078366159) and [Windows](https://github.com/mhamedshasho/redro-tools/actions/runs/43078366065).
-
-These are CI artifacts, not GitHub Releases. The Android artifact is debug-signed and is not suitable as a stable signed release/update channel. A release signing key and an explicit release workflow are still needed. The Windows app passed a startup smoke test on GitHub's hosted runner, but has not been launch-tested on an independent Windows machine or tested there with a real PDF.
-
-## Application identity
-
-The generated Android application ID is `com.redro.redro_pdf`, and its display name is `Redro PDF`. Keep this application ID unchanged for any compatible future release. A debug signing key is generated by CI and is not a stable release signing key.
-
-## Current verification limits
-
-Widget tests cover the start screen, language/direction switching, and light/dark switching. They do not open real PDFs. No Android-device installation or PDF-open test, real-PDF open test on Windows, Arabic/mixed-script document test, large document test, password-protected or damaged document test, scanned document test, save/reopen test, or memory test has been completed. See [the acceptance checklist](docs/MVP_ACCEPTANCE_CHECKLIST.md) for the current status.
-
-## Privacy
-
-The reader opens local file paths and has no document upload code. This is not a claim that files are encrypted, that temporary platform storage is securely erased, or that every third-party dependency has undergone an independent privacy audit.
+See [`docs/MVP_ACCEPTANCE_CHECKLIST.md`](docs/MVP_ACCEPTANCE_CHECKLIST.md) for implemented and outstanding work.
