@@ -65,19 +65,6 @@ jobs:
       - name: Build Windows release
         working-directory: mobile
         run: flutter build windows --release
-      - name: Smoke test Windows executable startup
-        shell: pwsh
-        run: |
-          $candidates = @(
-            "mobile/build/windows/x64/runner/Release/redro_pdf.exe",
-            "mobile/build/windows/runner/Release/redro_pdf.exe"
-          )
-          $exe = $candidates | Where-Object { Test-Path $_ } | Select-Object -First 1
-          if (!$exe) { throw "Windows executable was not produced." }
-          $process = Start-Process -FilePath (Resolve-Path $exe) -PassThru
-          Start-Sleep -Seconds 5
-          if ($process.HasExited) { throw "Windows executable exited during startup smoke test (code $($process.ExitCode))." }
-          Stop-Process -Id $process.Id -Force
       - name: Package portable files
         shell: pwsh
         run: |
@@ -101,6 +88,68 @@ jobs:
           if (!(Get-ChildItem $verify -Recurse -Filter "redro_pdf.exe")) { throw "Executable is missing from the ZIP." }
           if (!(Get-ChildItem $verify -Recurse -Filter "flutter_windows.dll")) { throw "Flutter runtime is missing from the ZIP." }
           if (!(Get-ChildItem $verify -Recurse -Filter "icudtl.dat")) { throw "ICU data is missing from the ZIP." }
+      - name: Generate multi-page PDF render fixture
+        shell: pwsh
+        run: |
+          $pdf = Join-Path $env:RUNNER_TEMP "redro-render-smoke.pdf"
+          py -3 mobile/tool/create_render_smoke_pdf.py $pdf
+          if (!(Test-Path $pdf)) { throw "PDF render fixture was not created." }
+          Write-Host "Fixture size: $((Get-Item $pdf).Length) bytes"
+      - name: Open real PDF and measure first-page rendering
+        shell: pwsh
+        run: |
+          $verify = Join-Path $env:RUNNER_TEMP "redro-pdf-portable-verify"
+          $exe = Get-ChildItem $verify -Recurse -Filter "redro_pdf.exe" | Select-Object -First 1
+          if (!$exe) { throw "Packaged Windows executable was not found." }
+          $pdf = Join-Path $env:RUNNER_TEMP "redro-render-smoke.pdf"
+          $resultPath = Join-Path $env:RUNNER_TEMP "redro-render-smoke-result.json"
+          $imagePath = Join-Path $env:RUNNER_TEMP "redro-render-smoke-first-page.png"
+          Remove-Item $resultPath, $imagePath -Force -ErrorAction SilentlyContinue
+
+          $arguments = @(
+            "--open-pdf=$pdf",
+            "--smoke-result=$resultPath",
+            "--smoke-image=$imagePath"
+          )
+          $process = Start-Process -FilePath $exe.FullName -ArgumentList $arguments -PassThru
+          $deadline = (Get-Date).AddSeconds(90)
+          while (!(Test-Path $resultPath) -and !$process.HasExited -and (Get-Date) -lt $deadline) {
+            Start-Sleep -Milliseconds 200
+            $process.Refresh()
+          }
+          if (!(Test-Path $resultPath)) {
+            if (!$process.HasExited) { Stop-Process -Id $process.Id -Force }
+            throw "The executable did not render the first page within 90 seconds."
+          }
+
+          $result = Get-Content $resultPath -Raw | ConvertFrom-Json
+          if (!$result.ok) { throw "PDF render failed: $($result.error)" }
+          if ([int]$result.pageCount -ne 24) { throw "Expected 24 PDF pages, got $($result.pageCount)." }
+          if ([int]$result.renderedPage -ne 1) { throw "Expected page 1, got page $($result.renderedPage)." }
+          if ([int]$result.imageWidth -le 0 -or [int]$result.imageHeight -le 0) { throw "Rendered image has invalid dimensions." }
+          if ([int]$result.imageBytes -le 1000) { throw "Rendered first-page image is unexpectedly small." }
+          if ([int]$result.timeToFirstPageImageMs -gt 30000) { throw "First-page render exceeded the 30-second performance limit." }
+          if (!(Test-Path $imagePath)) { throw "Rendered page image was not written." }
+          $png = [IO.File]::ReadAllBytes($imagePath)
+          $signature = @(137, 80, 78, 71, 13, 10, 26, 10)
+          for ($i = 0; $i -lt $signature.Count; $i++) {
+            if ($png[$i] -ne $signature[$i]) { throw "Rendered page output is not a valid PNG." }
+          }
+          if ($process.HasExited) { throw "The PDF viewer exited after producing its render result." }
+          $summary = "Windows PDF smoke test: 24-page PDF opened; page 1 rendered to $($result.imageWidth)x$($result.imageHeight) PNG ($($result.imageBytes) bytes) in $($result.timeToFirstPageImageMs) ms from process launch."
+          Write-Host $summary
+          Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value $summary
+          Stop-Process -Id $process.Id -Force
+      - name: Upload PDF render evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: redro-pdf-windows-render-smoke
+          path: |
+            ${{ runner.temp }}/redro-render-smoke.pdf
+            ${{ runner.temp }}/redro-render-smoke-result.json
+            ${{ runner.temp }}/redro-render-smoke-first-page.png
+          if-no-files-found: error
+          retention-days: 30
       - name: Upload portable ZIP
         uses: actions/upload-artifact@v4
         with:

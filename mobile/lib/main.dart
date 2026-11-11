@@ -1,3 +1,5 @@
+import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:file_picker/file_picker.dart';
@@ -5,13 +7,38 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:pdfx/pdfx.dart';
 
-void main() {
+void main(List<String> args) {
   WidgetsFlutterBinding.ensureInitialized();
-  runApp(const RedroPdfApp());
+  final renderStopwatch = Stopwatch()..start();
+  runApp(RedroPdfApp(
+    initialPdfPath: _argumentValue(args, '--open-pdf'),
+    smokeResultPath: _argumentValue(args, '--smoke-result'),
+    smokeImagePath: _argumentValue(args, '--smoke-image'),
+    renderStopwatch: renderStopwatch,
+  ));
+}
+
+String? _argumentValue(List<String> args, String name) {
+  final prefix = '$name=';
+  for (final argument in args) {
+    if (argument.startsWith(prefix)) return argument.substring(prefix.length);
+  }
+  return null;
 }
 
 class RedroPdfApp extends StatefulWidget {
-  const RedroPdfApp({super.key});
+  const RedroPdfApp({
+    super.key,
+    this.initialPdfPath,
+    this.smokeResultPath,
+    this.smokeImagePath,
+    this.renderStopwatch,
+  });
+
+  final String? initialPdfPath;
+  final String? smokeResultPath;
+  final String? smokeImagePath;
+  final Stopwatch? renderStopwatch;
 
   @override
   State<RedroPdfApp> createState() => _RedroPdfAppState();
@@ -45,6 +72,10 @@ class _RedroPdfAppState extends State<RedroPdfApp> {
       ),
       home: PdfHomePage(
         arabic: _arabic,
+        initialPdfPath: widget.initialPdfPath,
+        smokeResultPath: widget.smokeResultPath,
+        smokeImagePath: widget.smokeImagePath,
+        renderStopwatch: widget.renderStopwatch,
         onLanguageChanged: () => setState(() => _arabic = !_arabic),
         onThemeChanged: () => setState(() {
           _themeMode = _themeMode == ThemeMode.dark
@@ -82,11 +113,19 @@ class PdfHomePage extends StatefulWidget {
   const PdfHomePage({
     super.key,
     required this.arabic,
+    this.initialPdfPath,
+    this.smokeResultPath,
+    this.smokeImagePath,
+    this.renderStopwatch,
     required this.onLanguageChanged,
     required this.onThemeChanged,
   });
 
   final bool arabic;
+  final String? initialPdfPath;
+  final String? smokeResultPath;
+  final String? smokeImagePath;
+  final Stopwatch? renderStopwatch;
   final VoidCallback onLanguageChanged;
   final VoidCallback onThemeChanged;
 
@@ -100,6 +139,7 @@ class _PdfHomePageState extends State<PdfHomePage> {
   int _activeIndex = -1;
   String? _error;
   bool _busy = false;
+  bool _smokeResultWritten = false;
 
   bool get _isArabic => widget.arabic;
   _OpenPdf? get _active =>
@@ -109,7 +149,18 @@ class _PdfHomePageState extends State<PdfHomePage> {
 
   String _text(String english, String arabic) => _isArabic ? arabic : english;
 
-  Future<void> _openPdf() async {
+  @override
+  void initState() {
+    super.initState();
+    final initialPath = widget.initialPdfPath;
+    if (initialPath != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        unawaited(_openPdf(initialPath: initialPath));
+      });
+    }
+  }
+
+  Future<void> _openPdf({String? initialPath}) async {
     if (_busy) return;
     setState(() {
       _busy = true;
@@ -117,15 +168,18 @@ class _PdfHomePageState extends State<PdfHomePage> {
     });
 
     try {
-      final selected = await FilePicker.pickFile(
-        type: FileType.custom,
-        allowedExtensions: const ['pdf'],
-      );
-      if (selected == null) return;
-      final path = selected.path;
+      final selected = initialPath == null
+          ? await FilePicker.pickFile(
+              type: FileType.custom,
+              allowedExtensions: const ['pdf'],
+            )
+          : null;
+      if (initialPath == null && selected == null) return;
+      final path = initialPath ?? selected?.path;
       if (path == null) {
         throw const FormatException('The selected PDF has no readable local path.');
       }
+      final name = selected?.name ?? File(path).uri.pathSegments.last;
 
       final existingIndex = _documents.indexWhere((item) => item.path == path);
       if (existingIndex >= 0) {
@@ -148,13 +202,13 @@ class _PdfHomePageState extends State<PdfHomePage> {
       final opened = Platform.isWindows
           ? _OpenPdf(
               path: path,
-              name: selected.name,
+              name: name,
               pageCount: document.pagesCount,
               pageController: PdfController(document: controllerFuture),
             )
           : _OpenPdf(
               path: path,
-              name: selected.name,
+              name: name,
               pageCount: document.pagesCount,
               pinchController: PdfControllerPinch(document: controllerFuture),
             );
@@ -170,6 +224,9 @@ class _PdfHomePageState extends State<PdfHomePage> {
         _error = null;
       });
     } catch (error) {
+      if (widget.smokeResultPath != null) {
+        await _writeSmokeFailure(error);
+      }
       if (mounted) {
         final detail = error is FormatException
             ? error.message
@@ -236,8 +293,17 @@ class _PdfHomePageState extends State<PdfHomePage> {
   }
 
   Widget _buildReader(_OpenPdf document) {
+    final defaultPageBuilder = PdfViewBuilders<DefaultBuilderOptions>(
+      options: const DefaultBuilderOptions(),
+    ).pageBuilder;
     final builders = PdfViewBuilders<DefaultBuilderOptions>(
       options: const DefaultBuilderOptions(),
+      pageBuilder: (context, pageImage, index, pdfDocument) {
+        if (index == 0) {
+          _recordFirstPageRender(pageImage, pdfDocument);
+        }
+        return defaultPageBuilder(context, pageImage, index, pdfDocument);
+      },
       documentLoaderBuilder: (_) => const Center(
         child: CircularProgressIndicator(),
       ),
@@ -288,6 +354,51 @@ class _PdfHomePageState extends State<PdfHomePage> {
     document.currentPage = page;
     if (!mounted || !identical(document, _active)) return;
     setState(() => _pageInput.text = '$page');
+  }
+
+  Future<void> _writeSmokeFailure(Object error) async {
+    final resultPath = widget.smokeResultPath;
+    if (resultPath == null) return;
+    final result = File(resultPath);
+    await result.parent.create(recursive: true);
+    await result.writeAsString(jsonEncode({
+      'ok': false,
+      'error': error.toString(),
+      'timeToFirstPageImageMs': widget.renderStopwatch?.elapsedMilliseconds,
+    }));
+  }
+
+  void _recordFirstPageRender(
+    Future<PdfPageImage> pageImage,
+    PdfDocument document,
+  ) {
+    final resultPath = widget.smokeResultPath;
+    if (resultPath == null || _smokeResultWritten) return;
+    _smokeResultWritten = true;
+    unawaited(pageImage.then<void>((image) async {
+      await WidgetsBinding.instance.endOfFrame;
+      if (!mounted) return;
+      final imagePath = widget.smokeImagePath;
+      if (imagePath != null) {
+        final renderedImage = File(imagePath);
+        await renderedImage.parent.create(recursive: true);
+        await renderedImage.writeAsBytes(image.bytes, flush: true);
+      }
+      final result = File(resultPath);
+      await result.parent.create(recursive: true);
+      await result.writeAsString(jsonEncode({
+        'ok': true,
+        'pageCount': document.pagesCount,
+        'renderedPage': image.pageNumber,
+        'imageWidth': image.width,
+        'imageHeight': image.height,
+        'imageBytes': image.bytes.length,
+        'timeToFirstPageImageMs':
+            widget.renderStopwatch?.elapsedMilliseconds,
+      }));
+    }).catchError((Object error) async {
+      await _writeSmokeFailure(error);
+    }));
   }
 
   Widget _buildDocumentTab(int index, _OpenPdf document) {
