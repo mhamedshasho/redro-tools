@@ -1,9 +1,11 @@
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:pdfx/pdfx.dart';
+import 'package:syncfusion_flutter_pdf/pdf.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -71,6 +73,7 @@ class _OpenPdf {
   final PdfController? pageController;
   final PdfControllerPinch? pinchController;
   int currentPage = 1;
+  final Map<int, int> pageRotations = {};
 
   void dispose() {
     pageController?.dispose();
@@ -233,6 +236,78 @@ class _PdfHomePageState extends State<PdfHomePage> {
   void _changePage(int amount) {
     final document = _active;
     if (document != null) _goToPage(document.currentPage + amount);
+  }
+
+  void _rotateCurrentPage() {
+    final document = _active;
+    if (document == null) return;
+    final current = document.pageRotations[document.currentPage] ?? 0;
+    setState(() {
+      document.pageRotations[document.currentPage] = (current + 90) % 360;
+      _error = null;
+    });
+  }
+
+  Future<void> _saveRotatedCopy() async {
+    final source = _active;
+    if (source == null || _busy) return;
+    if (source.pageRotations.isEmpty) {
+      setState(() => _error = _text(
+        'Rotate at least one page before saving an edited copy.',
+        'قم بتدوير صفحة واحدة على الأقل قبل حفظ النسخة المعدّلة.',
+      ));
+      return;
+    }
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+    PdfDocument? editable;
+    try {
+      final input = await File(source.path).readAsBytes();
+      editable = PdfDocument(inputBytes: input);
+      for (final entry in source.pageRotations.entries) {
+        final pageIndex = entry.key - 1;
+        if (pageIndex < 0 || pageIndex >= editable.pages.count) continue;
+        final angle = entry.value;
+        final page = editable.pages[pageIndex];
+        page.rotation = switch (angle) {
+          90 => PdfPageRotateAngle.rotateAngle90,
+          180 => PdfPageRotateAngle.rotateAngle180,
+          270 => PdfPageRotateAngle.rotateAngle270,
+          _ => PdfPageRotateAngle.rotateAngle0,
+        };
+      }
+      final bytes = await editable.save();
+      final baseName = source.name.toLowerCase().endsWith('.pdf')
+          ? source.name.substring(0, source.name.length - 4)
+          : source.name;
+      final savedPath = await FilePicker.saveFile(
+        dialogTitle: _text('Save edited PDF copy', 'حفظ نسخة PDF المعدّلة'),
+        fileName: '${baseName}_edited.pdf',
+        type: FileType.custom,
+        allowedExtensions: const ['pdf'],
+        bytes: Uint8List.fromList(bytes),
+      );
+      if (savedPath == null || savedPath.isEmpty) return;
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(_text(
+          'Edited PDF copy saved successfully.',
+          'تم حفظ نسخة PDF المعدّلة بنجاح.',
+        ))),
+      );
+    } catch (error) {
+      if (mounted) {
+        setState(() => _error = _text(
+          'Could not save the edited PDF. The original file was not changed.',
+          'تعذّر حفظ ملف PDF المعدّل. لم يتم تغيير الملف الأصلي.',
+        ));
+      }
+    } finally {
+      editable?.dispose();
+      if (mounted) setState(() => _busy = false);
+    }
   }
 
   Widget _buildReader(_OpenPdf document) {
@@ -521,6 +596,16 @@ class _PdfHomePageState extends State<PdfHomePage> {
                                         .onSurfaceVariant,
                                   ),
                                 ),
+                              ),
+                              IconButton(
+                                tooltip: _text('Rotate current page', 'تدوير الصفحة الحالية'),
+                                onPressed: _busy ? null : _rotateCurrentPage,
+                                icon: const Icon(Icons.rotate_right_rounded),
+                              ),
+                              IconButton(
+                                tooltip: _text('Save edited copy', 'حفظ النسخة المعدّلة'),
+                                onPressed: _busy ? null : _saveRotatedCopy,
+                                icon: const Icon(Icons.save_alt_rounded),
                               ),
                               IconButton(
                                 tooltip: _text('Next page', 'الصفحة التالية'),
