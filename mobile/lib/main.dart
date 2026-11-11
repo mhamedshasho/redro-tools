@@ -219,7 +219,7 @@ class _PdfHomePageState extends State<PdfHomePage> {
       );
     } else {
       document.pinchController!.animateToPage(
-        page,
+        pageNumber: page,
         duration: const Duration(milliseconds: 220),
         curve: Curves.easeOut,
       );
@@ -412,12 +412,12 @@ class _PdfHomePageState extends State<PdfHomePage> {
       child: Scaffold(
         appBar: AppBar(
           titleSpacing: 20,
-          title: Row(
+          title: const Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.picture_as_pdf_rounded, color: Color(0xFFE53935)),
-              const SizedBox(width: 8),
-              const Text('Redro PDF', style: TextStyle(fontWeight: FontWeight.w800)),
+              Icon(Icons.picture_as_pdf_rounded, color: Color(0xFFE53935)),
+              SizedBox(width: 8),
+              Text('Redro PDF', style: TextStyle(fontWeight: FontWeight.w800)),
             ],
           ),
           actions: [
