@@ -25,12 +25,17 @@ jobs:
       - name: Install dependencies
         working-directory: mobile
         run: flutter pub get
-      - name: Validate
+      - name: Static analysis
         working-directory: mobile
         run: flutter analyze
-      - name: Build debug APK
+      - name: Run widget tests
+        working-directory: mobile
+        run: flutter test
+      - name: Build installable debug APK
         working-directory: mobile
         run: flutter build apk --debug
+      - name: Verify APK output
+        run: test -s mobile/build/app/outputs/flutter-apk/app-debug.apk
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
