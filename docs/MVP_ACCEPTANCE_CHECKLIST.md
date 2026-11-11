@@ -9,6 +9,7 @@ This checklist distinguishes features present in source from requirements valida
 - [x] Multiple document tabs with switch and close controls.
 - [x] Android pinch viewer; Windows standard viewer.
 - [x] Page count, previous/next, and direct page-number navigation.
+- [x] Per-page rotation in 90-degree increments with export to a separate PDF copy implemented in source (CI and real-file verification pending).
 - [x] English/Arabic copy and LTR/RTL layout toggle.
 - [x] Light/dark appearance toggle.
 - [x] No editing or conversion controls presented as working.
@@ -28,7 +29,8 @@ This checklist distinguishes features present in source from requirements valida
 - [ ] Persistent highlight/underline/strike-through annotations and edit/remove actions.
 - [ ] Text boxes, notes, freehand drawing, and signatures.
 - [ ] Save edited PDF, reopen it, and verify embedded changes.
-- [ ] Rotate, reorder, extract, delete, merge, or split pages.
+- [ ] Verify page rotation and saved-copy reopening with real PDFs.
+- [ ] Reorder, extract, delete, merge, or split pages.
 - [ ] Genuine PDF-to-DOCX or PDF-to-XLSX conversion.
 - [ ] Local OCR for Arabic and English scanned documents.
 - [ ] Persist language/theme settings across relaunch.
