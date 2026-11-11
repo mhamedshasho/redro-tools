@@ -19,6 +19,9 @@ jobs:
         with:
           channel: stable
           cache: true
+      - name: Generate Windows platform scaffolding
+        working-directory: mobile
+        run: flutter create --platforms=windows --project-name=redro_pdf --org=com.redro --no-pub .
       - name: Install dependencies
         working-directory: mobile
         run: flutter pub get
@@ -30,8 +33,7 @@ jobs:
         run: flutter build windows --release
       - name: Package portable files
         shell: pwsh
-        run: |
-          Compress-Archive -Path mobile/build/windows/x64/runner/Release/* -DestinationPath redro-pdf-windows-portable.zip -Force
+        run: Compress-Archive -Path mobile/build/windows/x64/runner/Release/* -DestinationPath redro-pdf-windows-portable.zip -Force
       - name: Upload portable ZIP
         uses: actions/upload-artifact@v4
         with:
