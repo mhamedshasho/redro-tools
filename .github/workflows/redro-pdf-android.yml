@@ -21,7 +21,9 @@ jobs:
           cache: true
       - name: Generate Android platform scaffolding
         working-directory: mobile
-        run: flutter create --platforms=android --project-name=redro_pdf --org=com.redro --no-pub .
+        run: |
+          flutter create --platforms=android --project-name=redro_pdf --org=com.redro --no-pub .
+          rm -f test/widget_test.dart
       - name: Install dependencies
         working-directory: mobile
         run: flutter pub get
