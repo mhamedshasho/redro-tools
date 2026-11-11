@@ -21,19 +21,29 @@ jobs:
           cache: true
       - name: Generate Windows platform scaffolding
         working-directory: mobile
-        run: flutter create --platforms=windows --project-name=redro_pdf --org=com.redro --no-pub .
+        run: |
+          flutter create --platforms=windows --project-name=redro_pdf --org=com.redro --no-pub .
+          if (Test-Path test/widget_test.dart) { Remove-Item test/widget_test.dart -Force }
       - name: Install dependencies
         working-directory: mobile
         run: flutter pub get
       - name: Validate
         working-directory: mobile
-        run: flutter analyze
+        run: flutter analyze && flutter test
       - name: Build Windows release
         working-directory: mobile
         run: flutter build windows --release
       - name: Package portable files
         shell: pwsh
-        run: Compress-Archive -Path mobile/build/windows/x64/runner/Release/* -DestinationPath redro-pdf-windows-portable.zip -Force
+        run: |
+          $release = "mobile/build/windows/x64/runner/Release"
+          if (!(Test-Path "$release/redro_pdf.exe")) { throw "Windows executable was not produced." }
+          Compress-Archive -Path "$release/*" -DestinationPath redro-pdf-windows-portable.zip -Force
+      - name: Verify portable package
+        shell: pwsh
+        run: |
+          if (!(Test-Path redro-pdf-windows-portable.zip)) { throw "Portable package missing." }
+          if ((Get-Item redro-pdf-windows-portable.zip).Length -le 0) { throw "Portable package is empty." }
       - name: Upload portable ZIP
         uses: actions/upload-artifact@v4
         with:
