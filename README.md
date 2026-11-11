@@ -1,48 +1,44 @@
-# Redro PDF
+# Redro PDF Converter
 
-Redro PDF is an offline-first Flutter application foundation for reading local PDF files on Android and Windows. This branch delivers a reader milestone, not the full editor/converter described by the long-term project name.
+Redro PDF is a Flutter app for Android and Windows. The current source now includes a PDF highlighter/save-copy path; it is not yet the complete text-and-image editor or Office converter requested by the owner.
 
-## Implemented
+## In the current source
 
-- Open a local PDF using the platform file picker; validate that the selected path exists and is non-empty before parsing.
-- Keep multiple PDFs open in tabs, switch among them, and close a tab without changing the source file.
-- Navigate pages using previous/next controls or a page number.
-- Pinch-to-zoom on Android. Windows uses the standard `pdfx` page viewer because its pinch viewer is not supported there.
-- Switch English/Arabic interface labels and LTR/RTL direction, plus light/dark appearance.
-- Process files locally; the app has no account, upload, or cloud-storage flow.
+- Opens local PDFs and keeps multiple documents in tabs.
+- Uses a shared PDF viewer with page navigation, text selection, and a highlighter mode with several colors.
+- Saves the viewer's PDF annotation bytes to a separate edited-copy file; the source file is not overwritten by default.
+- Includes page rotation in the current source.
+- Shows the supplied Redro PDF Converter logo in the app header and home screen.
+- Provides English/Arabic interface labels, LTR/RTL UI direction, and light/dark themes.
+- Opens files locally; there is no document-upload flow.
 
-PDF editing/saving is not implemented. Highlights, annotations, text selection, signatures, page operations, merge/split, PDF-to-DOCX/XLSX, OCR, in-app updates, and persisted preferences are not available. No controls claim to perform these actions.
+The owner will test feature behavior. No PDF feature tests were run for these changes. The latest built APKs are older than the highlighter/viewer changes and should not be treated as a current build.
 
-## Install from CI artifacts
+## Still to implement
 
-Download the `redro-pdf-android-release-split` artifact from the successful [Android Actions run](https://github.com/mhamedshasho/redro-tools/actions/runs/43080853686). Extract the artifact and install **one** APK that matches the device:
+- Editing existing PDF text in place.
+- Adding, moving, replacing, and deleting images inside PDFs.
+- Word export with editable text/images and Arabic/RTL reconstruction.
+- Excel export that detects tables and creates editable cells.
+- OCR for scanned pages, especially Arabic and mixed Arabic/English.
+- Stable APK signing and a reliable in-place update channel.
 
-| APK | CI size | Use |
-|---|---:|---|
-| `app-arm64-v8a-release.apk` | 17,062,271 bytes (about 17.1 MB) | Most current Android phones/tablets |
-| `app-armeabi-v7a-release.apk` | 14,416,087 bytes (about 14.4 MB) | 32-bit ARM devices |
-| `app-x86_64-release.apk` | 18,570,121 bytes (about 18.6 MB) | x86_64 devices/emulators |
+The Syncfusion PDF Viewer is a commercial package with a Community License available only to eligible organizations. Confirm the project's eligibility and license terms before distributing builds that use it. Exact PDF-to-Word/Excel fidelity cannot be guaranteed for all PDFs; scans need OCR, and PDF page appearance does not always contain recoverable paragraph/table structure. See [`docs/EDITOR_REQUIREMENTS.md`](docs/EDITOR_REQUIREMENTS.md) and [`docs/EDITOR_TECHNICAL_DECISIONS.md`](docs/EDITOR_TECHNICAL_DECISIONS.md).
 
-Copy the chosen APK to the device if needed, open it, and approve Android's install prompt. These are optimized release-mode builds, but CI signs them with an ephemeral debug key. They are not a stable update channel; installing a later build over an earlier one may require uninstalling the earlier build first. The artifact is retained by GitHub Actions for 30 days.
+## Build
 
-For Windows, download `redro-pdf-windows-portable.zip` from the successful [Windows Actions run](https://github.com/mhamedshasho/redro-tools/actions/runs/43080853344), extract the entire archive, and launch `redro_pdf.exe`. Keep the DLLs and `data/` folder beside the executable. There is no installer or setup wizard. If Windows reports a missing Visual C++ runtime, install the Microsoft Visual C++ 2015–2022 Redistributable for x64.
-
-## Build, test, and CI
-
-Install Flutter stable and the Android SDK or Windows desktop toolchain. From `mobile/`, run:
+Install Flutter stable and the Android SDK or Windows desktop toolchain, then run from `mobile/`:
 
 ```sh
 flutter pub get
-flutter analyze
-flutter test
+flutter build apk --release --split-per-abi
+flutter build windows --release
 ```
 
-Android CI runs `flutter build apk --release --split-per-abi`, checks that all three APKs are below 100 MB, and uploads them as one artifact. The successful Android and Windows workflows for commit `5df7186` are [Android](https://github.com/mhamedshasho/redro-tools/actions/runs/43080853686) and [Windows](https://github.com/mhamedshasho/redro-tools/actions/runs/43080853344). Windows CI also checks the portable ZIP and starts the packaged executable for a five-second smoke test.
+These commands build the source; the owner is responsible for feature testing.
 
-The Android application ID is `com.redro.redro_pdf` and the launcher label is `Redro PDF`. Do not change the application ID for a compatible upgrade. No stable Android signing key or versioned GitHub Release has been configured.
+## Android install and update requirements
 
-## Verification limits
+The Android application ID is `com.redro.redro_pdf`. For Android to update an installed app in place, keep that ID, sign the new APK with a compatible version of the same signing key, and increase the `versionCode`. The previously published CI APKs used an ephemeral debug key and are not a reliable update base. A trusted persistent signing key and the installed APK's signing identity are required before validating an update.
 
-Widget tests cover the start screen, language/direction switching, and light/dark switching; they do not open a real PDF. The Windows startup smoke test ran on GitHub's hosted runner, not a separate end-user machine. No Android-device installation, real-PDF viewing, Arabic/mixed-script document, large/encrypted/damaged/scanned PDF, save/reopen, or memory test has been completed. The app has not been network-monitored or independently privacy-audited; local processing does not imply encryption at rest or secure deletion.
-
-See [`docs/MVP_ACCEPTANCE_CHECKLIST.md`](docs/MVP_ACCEPTANCE_CHECKLIST.md) for implemented and outstanding work.
+Previous Android and Windows artifacts remain available from their earlier CI runs, but they predate the current highlighter source. Windows distribution is currently a portable ZIP; there is no installer/updater yet.

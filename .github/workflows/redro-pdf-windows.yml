@@ -35,11 +35,9 @@ jobs:
         run: |
           flutter create --platforms=windows --project-name=redro_pdf --org=com.redro --no-pub .
           if (Test-Path test/widget_test.dart) { Remove-Item test/widget_test.dart -Force }
-      - name: Install dependencies and configure pdfx
+      - name: Install dependencies
         working-directory: mobile
-        run: |
-          flutter pub get
-          dart run pdfx:install_windows
+        run: flutter pub get
       - name: Upload resolved dependency lockfile
         uses: actions/upload-artifact@v4
         with:

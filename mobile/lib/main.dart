@@ -4,8 +4,8 @@ import 'dart:typed_data';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:pdfx/pdfx.dart';
-import 'package:syncfusion_flutter_pdf/pdf.dart';
+import 'package:syncfusion_flutter_pdf/pdf.dart' as sfpdf;
+import 'package:syncfusion_flutter_pdfviewer/pdfviewer.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -62,22 +62,18 @@ class _OpenPdf {
   _OpenPdf({
     required this.path,
     required this.name,
-    required this.pageCount,
-    this.pageController,
-    this.pinchController,
+    required this.viewerController,
   });
 
   final String path;
   final String name;
-  final int pageCount;
-  final PdfController? pageController;
-  final PdfControllerPinch? pinchController;
+  final PdfViewerController viewerController;
+  int pageCount = 0;
   int currentPage = 1;
   final Map<int, int> pageRotations = {};
 
   void dispose() {
-    pageController?.dispose();
-    pinchController?.dispose();
+    viewerController.dispose();
   }
 }
 
@@ -103,6 +99,13 @@ class _PdfHomePageState extends State<PdfHomePage> {
   int _activeIndex = -1;
   String? _error;
   bool _busy = false;
+  Color _highlightColor = const Color(0xFFFFEB3B);
+  static const List<Color> _highlightColors = [
+    Color(0xFFFFEB3B),
+    Color(0xFF80CBC4),
+    Color(0xFF90CAF9),
+    Color(0xFFF48FB1),
+  ];
 
   bool get _isArabic => widget.arabic;
   _OpenPdf? get _active =>
@@ -111,6 +114,13 @@ class _PdfHomePageState extends State<PdfHomePage> {
           : null;
 
   String _text(String english, String arabic) => _isArabic ? arabic : english;
+
+  String _highlightColorName(Color color) {
+    if (color == _highlightColors[0]) return _text('Yellow', 'أصفر');
+    if (color == _highlightColors[1]) return _text('Teal', 'فيروزي');
+    if (color == _highlightColors[2]) return _text('Blue', 'أزرق');
+    return _text('Pink', 'وردي');
+  }
 
   Future<void> _openPdf() async {
     if (_busy) return;
@@ -146,21 +156,16 @@ class _PdfHomePageState extends State<PdfHomePage> {
         throw const FormatException('The selected file is empty or unavailable.');
       }
 
-      final document = await PdfDocument.openFile(path);
-      final controllerFuture = Future<PdfDocument>.value(document);
-      final opened = Platform.isWindows
-          ? _OpenPdf(
-              path: path,
-              name: selected.name,
-              pageCount: document.pagesCount,
-              pageController: PdfController(document: controllerFuture),
-            )
-          : _OpenPdf(
-              path: path,
-              name: selected.name,
-              pageCount: document.pagesCount,
-              pinchController: PdfControllerPinch(document: controllerFuture),
-            );
+      final viewerController = PdfViewerController();
+      final annotationSettings = PdfAnnotationSettings();
+      annotationSettings.highlight.color = _highlightColor;
+      annotationSettings.highlight.opacity = 0.38;
+      viewerController.annotationSettings = annotationSettings;
+      final opened = _OpenPdf(
+        path: path,
+        name: selected.name,
+        viewerController: viewerController,
+      );
 
       if (!mounted) {
         opened.dispose();
@@ -212,21 +217,9 @@ class _PdfHomePageState extends State<PdfHomePage> {
 
   void _goToPage(int requestedPage) {
     final document = _active;
-    if (document == null) return;
+    if (document == null || document.pageCount == 0) return;
     final page = requestedPage.clamp(1, document.pageCount).toInt();
-    if (document.pageController case final controller?) {
-      controller.animateToPage(
-        page,
-        duration: const Duration(milliseconds: 220),
-        curve: Curves.easeOut,
-      );
-    } else {
-      document.pinchController!.animateToPage(
-        pageNumber: page,
-        duration: const Duration(milliseconds: 220),
-        curve: Curves.easeOut,
-      );
-    }
+    document.viewerController.jumpToPage(page);
     setState(() {
       document.currentPage = page;
       _pageInput.text = '$page';
@@ -238,6 +231,57 @@ class _PdfHomePageState extends State<PdfHomePage> {
     if (document != null) _goToPage(document.currentPage + amount);
   }
 
+  void _toggleHighlighter() {
+    final document = _active;
+    if (document == null) return;
+    final controller = document.viewerController;
+    controller.annotationMode =
+        controller.annotationMode == PdfAnnotationMode.highlight
+            ? PdfAnnotationMode.none
+            : PdfAnnotationMode.highlight;
+    setState(() => _error = null);
+  }
+
+  void _setHighlightColor(Color color) {
+    final document = _active;
+    setState(() => _highlightColor = color);
+    if (document == null) return;
+    final settings = document.viewerController.annotationSettings;
+    settings.highlight.color = color;
+    settings.highlight.opacity = 0.38;
+    document.viewerController.annotationSettings = settings;
+    document.viewerController.annotationMode = PdfAnnotationMode.highlight;
+  }
+
+  Widget _buildHighlightColorMenu() => PopupMenuButton<Color>(
+        tooltip: _text('Choose highlight color', 'اختيار لون التمييز'),
+        onSelected: _setHighlightColor,
+        itemBuilder: (context) => _highlightColors
+            .map((color) => PopupMenuItem<Color>(
+                  value: color,
+                  child: Row(
+                    children: [
+                      CircleAvatar(backgroundColor: color, radius: 10),
+                      const SizedBox(width: 12),
+                      Text(_highlightColorName(color)),
+                    ],
+                  ),
+                ))
+            .toList(),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 10),
+          child: Container(
+            width: 24,
+            height: 24,
+            decoration: BoxDecoration(
+              color: _highlightColor,
+              shape: BoxShape.circle,
+              border: Border.all(color: Theme.of(context).colorScheme.outline),
+            ),
+          ),
+        ),
+      );
+
   void _rotateCurrentPage() {
     final document = _active;
     if (document == null) return;
@@ -248,37 +292,32 @@ class _PdfHomePageState extends State<PdfHomePage> {
     });
   }
 
-  Future<void> _saveRotatedCopy() async {
+  Future<void> _saveEditedCopy() async {
     final source = _active;
     if (source == null || _busy) return;
-    if (source.pageRotations.isEmpty) {
-      setState(() => _error = _text(
-        'Rotate at least one page before saving an edited copy.',
-        'قم بتدوير صفحة واحدة على الأقل قبل حفظ النسخة المعدّلة.',
-      ));
-      return;
-    }
     setState(() {
       _busy = true;
       _error = null;
     });
-    PdfDocument? editable;
+    sfpdf.PdfDocument? editable;
     try {
-      final input = await File(source.path).readAsBytes();
-      editable = PdfDocument(inputBytes: input);
-      for (final entry in source.pageRotations.entries) {
-        final pageIndex = entry.key - 1;
-        if (pageIndex < 0 || pageIndex >= editable.pages.count) continue;
-        final angle = entry.value;
-        final page = editable.pages[pageIndex];
-        page.rotation = switch (angle) {
-          90 => PdfPageRotateAngle.rotateAngle90,
-          180 => PdfPageRotateAngle.rotateAngle180,
-          270 => PdfPageRotateAngle.rotateAngle270,
-          _ => PdfPageRotateAngle.rotateAngle0,
-        };
+      var bytes = await source.viewerController.saveDocument();
+      if (source.pageRotations.isNotEmpty) {
+        editable = sfpdf.PdfDocument(inputBytes: Uint8List.fromList(bytes));
+        for (final entry in source.pageRotations.entries) {
+          final pageIndex = entry.key - 1;
+          if (pageIndex < 0 || pageIndex >= editable.pages.count) continue;
+          final angle = entry.value;
+          final page = editable.pages[pageIndex];
+          page.rotation = switch (angle) {
+            90 => sfpdf.PdfPageRotateAngle.rotateAngle90,
+            180 => sfpdf.PdfPageRotateAngle.rotateAngle180,
+            270 => sfpdf.PdfPageRotateAngle.rotateAngle270,
+            _ => sfpdf.PdfPageRotateAngle.rotateAngle0,
+          };
+        }
+        bytes = await editable.save();
       }
-      final bytes = await editable.save();
       final baseName = source.name.toLowerCase().endsWith('.pdf')
           ? source.name.substring(0, source.name.length - 4)
           : source.name;
@@ -311,58 +350,38 @@ class _PdfHomePageState extends State<PdfHomePage> {
   }
 
   Widget _buildReader(_OpenPdf document) {
-    final builders = PdfViewBuilders<DefaultBuilderOptions>(
-      options: const DefaultBuilderOptions(),
-      documentLoaderBuilder: (_) => const Center(
-        child: CircularProgressIndicator(),
-      ),
-      pageLoaderBuilder: (_) => const Center(
-        child: CircularProgressIndicator(),
-      ),
-      errorBuilder: (_, error) => _readerError(error),
-    );
-    final pinchBuilders = PdfViewPinchBuilders<DefaultBuilderOptions>(
-      options: const DefaultBuilderOptions(),
-      documentLoaderBuilder: (_) => const Center(
-        child: CircularProgressIndicator(),
-      ),
-      pageLoaderBuilder: (_) => const Center(
-        child: CircularProgressIndicator(),
-      ),
-      errorBuilder: (_, error) => _readerError(error),
-    );
-
-    if (document.pageController case final controller?) {
-      return PdfView(
-        key: ValueKey('pdf-${document.path}'),
-        controller: controller,
-        onPageChanged: (page) => _onPageChanged(document, page),
-        builders: builders,
-      );
-    }
-    return PdfViewPinch(
+    return SfPdfViewer.file(
+      File(document.path),
       key: ValueKey('pdf-${document.path}'),
-      controller: document.pinchController!,
-      onPageChanged: (page) => _onPageChanged(document, page),
-      builders: pinchBuilders,
+      controller: document.viewerController,
+      enableTextSelection: true,
+      canShowTextSelectionMenu: true,
+      onDocumentLoaded: (details) {
+        if (!mounted) return;
+        setState(() {
+          document.pageCount = details.document.pages.count;
+          document.currentPage = document.viewerController.pageNumber;
+          if (identical(document, _active)) {
+            _pageInput.text = '${document.currentPage}';
+          }
+        });
+      },
+      onDocumentLoadFailed: (details) {
+        if (!mounted) return;
+        setState(() {
+          _error = _text(
+            'Could not open ${document.name}: ${details.description}',
+            'تعذّر فتح ${document.name}: ${details.description}',
+          );
+        });
+      },
+      onPageChanged: (details) => _onPageChanged(document, details),
     );
   }
-
-  Widget _readerError(Object error) => Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Text(
-            _text('This PDF page could not be rendered.', 'تعذّر عرض صفحة PDF هذه.'),
-            textAlign: TextAlign.center,
-            style: TextStyle(color: Theme.of(context).colorScheme.error),
-          ),
-        ),
-      );
-
-  void _onPageChanged(_OpenPdf document, int page) {
-    document.currentPage = page;
+  void _onPageChanged(_OpenPdf document, PdfPageChangedDetails details) {
+    document.currentPage = details.newPageNumber;
     if (!mounted || !identical(document, _active)) return;
-    setState(() => _pageInput.text = '$page');
+    setState(() => _pageInput.text = '${details.newPageNumber}');
   }
 
   Widget _buildDocumentTab(int index, _OpenPdf document) {
@@ -546,76 +565,97 @@ class _PdfHomePageState extends State<PdfHomePage> {
                         const Divider(height: 1),
                         SizedBox(
                           height: 54,
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              IconButton(
-                                tooltip: _text('Previous page', 'الصفحة السابقة'),
-                                onPressed: document.currentPage > 1
-                                    ? () => _changePage(-1)
-                                    : null,
-                                icon: const Icon(Icons.chevron_left_rounded),
-                              ),
-                              SizedBox(
-                                width: 68,
-                                child: TextField(
-                                  key: ValueKey('page-${document.path}'),
-                                  controller: _pageInput,
-                                  textAlign: TextAlign.center,
-                                  keyboardType: TextInputType.number,
-                                  inputFormatters: [
-                                    FilteringTextInputFormatter.digitsOnly,
-                                  ],
-                                  decoration: InputDecoration(
-                                    isDense: true,
-                                    contentPadding: const EdgeInsets.symmetric(
-                                      horizontal: 8,
-                                      vertical: 10,
-                                    ),
-                                    border: OutlineInputBorder(
-                                      borderRadius: BorderRadius.circular(10),
-                                    ),
-                                  ),
-                                  onSubmitted: (value) {
-                                    final page = int.tryParse(value);
-                                    if (page != null) {
-                                      _goToPage(page);
-                                    } else {
-                                      _pageInput.text = '${document.currentPage}';
-                                    }
-                                  },
+                          child: SingleChildScrollView(
+                            scrollDirection: Axis.horizontal,
+                            padding: const EdgeInsets.symmetric(horizontal: 8),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                IconButton(
+                                  tooltip: _text('Previous page', 'الصفحة السابقة'),
+                                  onPressed: document.currentPage > 1
+                                      ? () => _changePage(-1)
+                                      : null,
+                                  icon: const Icon(Icons.chevron_left_rounded),
                                 ),
-                              ),
-                              Padding(
-                                padding: const EdgeInsets.symmetric(horizontal: 8),
-                                child: Text(
-                                  '/ ${document.pageCount}',
-                                  style: TextStyle(
-                                    color: Theme.of(context)
-                                        .colorScheme
-                                        .onSurfaceVariant,
+                                SizedBox(
+                                  width: 68,
+                                  child: TextField(
+                                    key: ValueKey('page-${document.path}'),
+                                    controller: _pageInput,
+                                    textAlign: TextAlign.center,
+                                    keyboardType: TextInputType.number,
+                                    inputFormatters: [
+                                      FilteringTextInputFormatter.digitsOnly,
+                                    ],
+                                    decoration: InputDecoration(
+                                      isDense: true,
+                                      contentPadding: const EdgeInsets.symmetric(
+                                        horizontal: 8,
+                                        vertical: 10,
+                                      ),
+                                      border: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(10),
+                                      ),
+                                    ),
+                                    onSubmitted: (value) {
+                                      final page = int.tryParse(value);
+                                      if (page != null) {
+                                        _goToPage(page);
+                                      } else {
+                                        _pageInput.text = '${document.currentPage}';
+                                      }
+                                    },
                                   ),
                                 ),
-                              ),
-                              IconButton(
-                                tooltip: _text('Rotate current page', 'تدوير الصفحة الحالية'),
-                                onPressed: _busy ? null : _rotateCurrentPage,
-                                icon: const Icon(Icons.rotate_right_rounded),
-                              ),
-                              IconButton(
-                                tooltip: _text('Save edited copy', 'حفظ النسخة المعدّلة'),
-                                onPressed: _busy ? null : _saveRotatedCopy,
-                                icon: const Icon(Icons.save_alt_rounded),
-                              ),
-                              IconButton(
-                                tooltip: _text('Next page', 'الصفحة التالية'),
-                                onPressed:
-                                    document.currentPage < document.pageCount
-                                        ? () => _changePage(1)
+                                Padding(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                                  child: Text(
+                                    document.pageCount == 0
+                                        ? '/ …'
+                                        : '/ ${document.pageCount}',
+                                    style: TextStyle(
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .onSurfaceVariant,
+                                    ),
+                                  ),
+                                ),
+                                IconButton(
+                                  tooltip: _text('Toggle highlighter', 'تشغيل/إيقاف التمييز'),
+                                  onPressed: _busy ? null : _toggleHighlighter,
+                                  icon: Icon(
+                                    document.viewerController.annotationMode ==
+                                            PdfAnnotationMode.highlight
+                                        ? Icons.highlight_rounded
+                                        : Icons.highlight_outlined,
+                                    color: document.viewerController.annotationMode ==
+                                            PdfAnnotationMode.highlight
+                                        ? Theme.of(context).colorScheme.primary
                                         : null,
-                                icon: const Icon(Icons.chevron_right_rounded),
-                              ),
-                            ],
+                                  ),
+                                ),
+                                _buildHighlightColorMenu(),
+                                IconButton(
+                                  tooltip: _text('Rotate current page', 'تدوير الصفحة الحالية'),
+                                  onPressed: _busy ? null : _rotateCurrentPage,
+                                  icon: const Icon(Icons.rotate_right_rounded),
+                                ),
+                                TextButton.icon(
+                                  onPressed: _busy ? null : _saveEditedCopy,
+                                  icon: const Icon(Icons.save_alt_rounded),
+                                  label: Text(_text('Save copy', 'حفظ نسخة')),
+                                ),
+                                IconButton(
+                                  tooltip: _text('Next page', 'الصفحة التالية'),
+                                  onPressed: document.pageCount > 0 &&
+                                          document.currentPage < document.pageCount
+                                      ? () => _changePage(1)
+                                      : null,
+                                  icon: const Icon(Icons.chevron_right_rounded),
+                                ),
+                              ],
+                            ),
                           ),
                         ),
                       ],

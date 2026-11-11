@@ -1,40 +1,28 @@
-# Redro PDF — Flutter application
+# Redro PDF Converter — Flutter app
 
-This repository currently contains the local PDF reader milestone for Android and Windows.
+The Flutter source targets Android and Windows. It uses a shared PDF viewer and currently includes local PDF tabs, page navigation, selectable-text highlighting, highlight colors, and Save Edited Copy. Page rotation is also present in source. The owner has not yet tested these editing changes; no feature tests were run by the assistant.
 
-## Implemented
+The app includes the Redro PDF Converter logo and an English/Arabic interface direction toggle. This does not yet establish Arabic OCR or perfect mixed-script rendering in exported documents.
 
-- Local PDF selection using the platform file picker.
-- Multiple open document tabs.
-- PDF rendering, page count, previous/next navigation, and direct page-number navigation.
-- Rotate the current page in 90-degree increments and save a separate edited PDF copy using the Syncfusion PDF engine. The original document is never overwritten.
-- Android pinch zoom; the standard PDF view is used on Windows because the `pdfx` pinch viewer is not supported there.
-- English/Arabic interface copy with RTL/LTR direction switching.
-- Light/dark appearance switching.
-- No account, document upload, or cloud-storage flow.
+## Not implemented yet
 
-Other editing features are not implemented yet: text selection, persistent highlights/underline/strike-through, notes, drawing, signatures, page reorder/delete/extract, merging/splitting, DOCX/XLSX conversion, OCR, update checking/downloading, and stable release signing. Page rotation and saving a separate rotated copy are the first editing operations added; they still require successful CI and real-file verification. The widget tests do not open real PDFs. Do not advertise these capabilities as available.
+The current code does not edit existing page text or replace/delete embedded image objects. DOCX/XLSX conversion and scanned-PDF OCR are also still outstanding. The requested Office exports must preserve as much editable text, images, and table data as the source permits; they must not be presented as complete if the output is only page images.
 
-## Android APKs
+The app uses Syncfusion's commercial Flutter PDF Viewer. The owner must confirm eligibility for the Syncfusion Community License or arrange another valid license before distribution.
 
-Android CI creates optimized release-mode APKs split by ABI. The uploaded artifact `redro-pdf-android-release-split` contains `app-arm64-v8a-release.apk` (about 17.1 MB), `app-armeabi-v7a-release.apk` (about 14.4 MB), and `app-x86_64-release.apk` (about 18.6 MB). Select the file that matches the target device; most current phones use arm64. The APKs use an ephemeral CI debug signing key, not a stable release/update key. See the latest [Android Actions run](https://github.com/mhamedshasho/redro-tools/actions/runs/43080853686).
+## Build locally
 
-## Local development
-
-Install Flutter stable and the target platform's toolchain, then run:
+With Flutter stable and the target platform toolchain installed:
 
 ```sh
 cd mobile
 flutter pub get
-flutter analyze
-flutter test
-flutter run
+flutter build apk --release --split-per-abi
+flutter build windows --release
 ```
 
-Windows CI generates the desktop scaffold, builds the Release directory, packages runtime files, and performs a five-second executable startup smoke test. The latest [Windows Actions run](https://github.com/mhamedshasho/redro-tools/actions/runs/43080853344) passed. Remaining device-test limitations and unfinished product requirements are recorded in the root README and `docs/MVP_ACCEPTANCE_CHECKLIST.md`.
+The owner tests app behavior. The assistant is not running PDF feature tests.
 
-## Identity and privacy
+## Android updates
 
-The Android package identifier is fixed in CI as `com.redro.redro_pdf`; the launcher label is `Redro PDF`. Do not change the identifier for a compatible upgrade.
-
-PDF content is opened from a local file path. The app does not upload document contents. This does not provide encryption at rest or secure deletion guarantees.
+The Android application ID must remain `com.redro.redro_pdf`. Updating an existing installation requires a newer version code and a signing certificate compatible with the APK already installed. Earlier CI artifacts were signed with an ephemeral debug key; they are not a stable update channel. The Windows package is a portable ZIP, with no setup/updater yet.
