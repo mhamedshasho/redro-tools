@@ -1,5 +1,19 @@
 # Redro PDF — MVP acceptance checklist
 
+## Current implementation snapshot
+
+- [x] Flutter application entry point and adaptive Material interface foundation.
+- [x] Local PDF file picker integration.
+- [x] PDF viewing surface with pinch zoom.
+- [x] English and Arabic interface labels with RTL direction switching.
+- [x] Light/dark theme switching.
+- [x] Android and Windows CI build definitions.
+- [ ] CI build has completed successfully and generated downloadable artifacts.
+- [ ] Device-level PDF compatibility tests completed.
+- [ ] Persistent PDF annotations implemented and verified.
+
+The checked items above indicate code has been added to the branch; they are not a claim that a release build or device test has passed.
+
 ## First test build
 
 - [ ] Launches on supported Android devices and Windows 10/11.
