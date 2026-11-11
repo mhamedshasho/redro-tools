@@ -24,6 +24,22 @@ jobs:
         run: |
           flutter create --platforms=android --project-name=redro_pdf --org=com.redro --no-pub .
           rm -f test/widget_test.dart
+      - name: Set Android compile SDK
+        working-directory: mobile
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path("android/app/build.gradle.kts")
+          if path.exists():
+              source = path.read_text()
+              source = source.replace("compileSdk = flutter.compileSdkVersion", "compileSdk = 36")
+              path.write_text(source)
+          else:
+              path = Path("android/app/build.gradle")
+              source = path.read_text()
+              source = source.replace("compileSdkVersion flutter.compileSdkVersion", "compileSdkVersion 36")
+              path.write_text(source)
+          PY
       - name: Install dependencies
         working-directory: mobile
         run: flutter pub get
