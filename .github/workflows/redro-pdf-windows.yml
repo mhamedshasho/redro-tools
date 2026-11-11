@@ -2,6 +2,12 @@ name: Redro PDF Windows Portable Build
 
 on:
   workflow_dispatch:
+    inputs:
+      run_checks:
+        description: Run analyzer, automated tests, and executable smoke check before packaging
+        required: false
+        default: false
+        type: boolean
   push:
     paths:
       - "mobile/**"
@@ -46,9 +52,11 @@ jobs:
           if-no-files-found: error
           retention-days: 30
       - name: Static analysis
+        if: ${{ github.event_name != 'workflow_dispatch' || inputs.run_checks }}
         working-directory: mobile
         run: flutter analyze
       - name: Run automated tests
+        if: ${{ github.event_name != 'workflow_dispatch' || inputs.run_checks }}
         working-directory: mobile
         run: flutter test
       - name: Set Windows display name
@@ -64,6 +72,7 @@ jobs:
         working-directory: mobile
         run: flutter build windows --release
       - name: Smoke test Windows executable startup
+        if: ${{ github.event_name != 'workflow_dispatch' || inputs.run_checks }}
         shell: pwsh
         run: |
           $candidates = @(

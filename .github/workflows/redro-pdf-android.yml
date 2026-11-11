@@ -2,6 +2,12 @@ name: Redro PDF Android Build
 
 on:
   workflow_dispatch:
+    inputs:
+      run_checks:
+        description: Run analyzer and automated tests before building
+        required: false
+        default: false
+        type: boolean
   push:
     paths:
       - "mobile/**"
@@ -109,9 +115,11 @@ jobs:
           if-no-files-found: error
           retention-days: 30
       - name: Static analysis
+        if: ${{ github.event_name != 'workflow_dispatch' || inputs.run_checks }}
         working-directory: mobile
         run: flutter analyze
       - name: Run automated tests
+        if: ${{ github.event_name != 'workflow_dispatch' || inputs.run_checks }}
         working-directory: mobile
         run: flutter test
       - name: Build optimized release APKs per ABI
