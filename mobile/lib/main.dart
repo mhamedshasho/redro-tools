@@ -293,7 +293,7 @@ class _PdfHomePageState extends State<PdfHomePage> {
   }
 
   Widget _buildReader(_OpenPdf document) {
-    final defaultPageBuilder = PdfViewBuilders<DefaultBuilderOptions>(
+    final defaultPageBuilder = const PdfViewBuilders<DefaultBuilderOptions>(
       options: const DefaultBuilderOptions(),
     ).pageBuilder;
     final builders = PdfViewBuilders<DefaultBuilderOptions>(
