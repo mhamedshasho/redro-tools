@@ -1,33 +1,31 @@
 # Redro PDF Converter
 
-Redro PDF is a Flutter app for Android and Windows. The current source now includes a PDF highlighter/save-copy path; it is not yet the complete text-and-image editor or Office converter requested by the owner.
+Redro PDF is a Flutter app for Android and Windows. The current source includes a selectable-text highlighter with color choices and a Save Copy path for PDF annotations. It is not yet the full text-and-image editor or Office converter requested by the owner.
 
-## In the current source
+## Current build downloads
 
-- Opens local PDFs and keeps multiple documents in tabs.
-- Uses a shared PDF viewer with page navigation, text selection, and a highlighter mode with several colors.
-- Saves the viewer's PDF annotation bytes to a separate edited-copy file; the source file is not overwritten by default.
-- Includes page rotation in the current source.
-- Shows the supplied Redro PDF Converter logo in the app header and home screen.
-- Provides English/Arabic interface labels, LTR/RTL UI direction, and light/dark themes.
-- Opens files locally; there is no document-upload flow.
+Fresh build-only artifacts were produced from source commit `82deb04`. The GitHub Actions builds succeeded; analyzer/tests and the Windows launch smoke check were skipped, as requested. These are Actions artifacts, not a published GitHub Release, and GitHub retains them for 30 days.
 
-The owner will test feature behavior. No PDF feature tests were run for these changes. The latest built APKs are older than the highlighter/viewer changes and should not be treated as a current build.
+| Platform | Download | Size |
+|---|---|---:|
+| Android arm64 (most current phones) | [app-arm64-v8a-release.apk](/home/ubuntu/work/deliverables/current-release/android-retry/app-arm64-v8a-release.apk) | 21,944,651 bytes |
+| Android 32-bit ARM | [app-armeabi-v7a-release.apk](/home/ubuntu/work/deliverables/current-release/android-retry/app-armeabi-v7a-release.apk) | 19,904,675 bytes |
+| Android x86_64 | [app-x86_64-release.apk](/home/ubuntu/work/deliverables/current-release/android-retry/app-x86_64-release.apk) | 23,583,573 bytes |
+| Windows | [redro-pdf-windows-portable.zip](/home/ubuntu/work/deliverables/current-release/windows/redro-pdf-windows-portable.zip) | 16,903,428 bytes |
+
+The [Android build run](https://github.com/mhamedshasho/redro-tools/actions/runs/43092534621) contains the split APK artifact; the [Windows build run](https://github.com/mhamedshasho/redro-tools/actions/runs/43092540575) contains the portable ZIP. Extract the Windows ZIP and keep the executable, DLLs, and `data/` directory together.
+
+## Current source features
+
+The app opens local PDFs in multiple tabs, navigates pages, and provides highlighter mode with four colors. **Save Copy** serializes the PDF viewer's annotation bytes to a separate file. The source also contains page rotation, the supplied Redro logo, English/Arabic interface labels with LTR/RTL UI direction, and light/dark appearance. The owner will test PDF behavior; no PDF feature tests or app launch checks were run for this build.
 
 ## Still to implement
 
-- Editing existing PDF text in place.
-- Adding, moving, replacing, and deleting images inside PDFs.
-- Word export with editable text/images and Arabic/RTL reconstruction.
-- Excel export that detects tables and creates editable cells.
-- OCR for scanned pages, especially Arabic and mixed Arabic/English.
-- Stable APK signing and a reliable in-place update channel.
+Editing existing PDF text in place; adding, moving, replacing, and deleting embedded image objects; editable Word and Excel conversion; Arabic/multilingual OCR; and stable app update signing remain outstanding. The selected Syncfusion viewer is commercial software; confirm Community License eligibility or arrange another valid license before distribution. See [`docs/EDITOR_REQUIREMENTS.md`](docs/EDITOR_REQUIREMENTS.md) and [`docs/EDITOR_TECHNICAL_DECISIONS.md`](docs/EDITOR_TECHNICAL_DECISIONS.md).
 
-The Syncfusion PDF Viewer is a commercial package with a Community License available only to eligible organizations. Confirm the project's eligibility and license terms before distributing builds that use it. Exact PDF-to-Word/Excel fidelity cannot be guaranteed for all PDFs; scans need OCR, and PDF page appearance does not always contain recoverable paragraph/table structure. See [`docs/EDITOR_REQUIREMENTS.md`](docs/EDITOR_REQUIREMENTS.md) and [`docs/EDITOR_TECHNICAL_DECISIONS.md`](docs/EDITOR_TECHNICAL_DECISIONS.md).
+## Build locally
 
-## Build
-
-Install Flutter stable and the Android SDK or Windows desktop toolchain, then run from `mobile/`:
+From `mobile/`, install Flutter stable and the target platform toolchain, then run:
 
 ```sh
 flutter pub get
@@ -35,10 +33,4 @@ flutter build apk --release --split-per-abi
 flutter build windows --release
 ```
 
-These commands build the source; the owner is responsible for feature testing.
-
-## Android install and update requirements
-
-The Android application ID is `com.redro.redro_pdf`. For Android to update an installed app in place, keep that ID, sign the new APK with a compatible version of the same signing key, and increase the `versionCode`. The previously published CI APKs used an ephemeral debug key and are not a reliable update base. A trusted persistent signing key and the installed APK's signing identity are required before validating an update.
-
-Previous Android and Windows artifacts remain available from their earlier CI runs, but they predate the current highlighter source. Windows distribution is currently a portable ZIP; there is no installer/updater yet.
+The Android application ID is `com.redro.redro_pdf`, and the current package version is `0.2.0+2`. To update an existing installation, keep the application ID, use a signing certificate compatible with the installed app, and increase the version code. These CI APKs use a temporary debug-signing identity; they may not update a separately signed installation. A persistent release key is not configured. Windows is distributed as a portable ZIP; there is no installer/updater.

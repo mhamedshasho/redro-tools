@@ -1,41 +1,41 @@
 # Redro PDF Converter — implementation status
 
-This checklist separates source code from owner verification. The owner tests PDF behavior; the assistant is not running feature tests.
+This checklist separates source/build availability from user-facing behavior. The owner tests PDF behavior; the assistant did not run app tests.
 
-## Present in current source
+## Present in source and packaged in the current build
 
-- [x] Redro logo assets and branded home/header UI.
-- [x] Local PDF selection and multiple document tabs.
-- [x] Shared Android/Windows viewer dependency with page navigation and text selection.
-- [x] Highlighter mode and a small highlight-color palette in the editor toolbar.
-- [x] Save Edited Copy writes the PDF viewer's serialized document bytes to a separate file; highlight annotations are intended to persist in that copy.
-- [x] Page-rotation data and save-copy path are present in source.
-- [x] English/Arabic interface labels and LTR/RTL UI direction toggle.
-- [x] Light/dark appearance control.
+- [x] Redro logo assets and branded UI.
+- [x] Local PDF selection, multiple document tabs, and page navigation.
+- [x] Shared Android/Windows PDF viewer dependency.
+- [x] Highlighter mode and four highlight colors.
+- [x] Save Edited Copy serializes viewer annotation bytes to a separate PDF file.
+- [x] Page rotation code and save-copy path.
+- [x] English/Arabic interface labels, LTR/RTL UI toggle, and light/dark appearance.
+- [x] Android release APKs built successfully from `82deb04`: [Android Actions run](https://github.com/mhamedshasho/redro-tools/actions/runs/43092534621).
+- [x] Windows portable ZIP built and package contents verified from `82deb04`: [Windows Actions run](https://github.com/mhamedshasho/redro-tools/actions/runs/43092540575).
+
+The manual runs skipped static analysis, automated tests, and the Windows executable launch check, as requested. Successful compilation/package creation does not prove that the annotation/save behavior works on real PDFs.
 
 ## Owner testing still required
 
-- [ ] Build and open a local PDF on Android and Windows.
-- [ ] Select text with the highlighter, create highlights, change color, and save a copy.
-- [ ] Reopen the saved PDF in Redro and in another PDF viewer; confirm highlights persist and can be selected/deleted.
-- [ ] Check Arabic-only, English-only, and mixed Arabic/English PDFs.
-- [ ] Test page rotation and saved-copy behavior.
-- [ ] Test unsaved edits, large files, encrypted files, and damaged PDFs.
-
-No tests were run by the assistant for these changes, at the owner's request. The previous CI APK/Windows artifacts predate the new viewer and highlight source.
+- [ ] Install/open the current APK on Android and open a real PDF.
+- [ ] Open a real PDF in the Windows executable.
+- [ ] Highlight text, change color, save a copy, reopen it, and verify the annotation persists.
+- [ ] Check deletion/editing of highlights, Arabic-only/English-only/mixed-direction PDFs, page rotation, and large/encrypted/damaged files.
+- [ ] Test whether the new APK updates the currently installed app. It requires a compatible signer; the CI APKs use a temporary debug key.
 
 ## Still not implemented
 
 - [ ] Direct editing of existing PDF text objects.
-- [ ] Insert, move, replace, and remove image objects in a PDF.
-- [ ] Editable DOCX conversion with images, text, and Arabic/RTL.
-- [ ] XLSX table detection and editable cells, with image/page context where appropriate.
-- [ ] Arabic and multilingual OCR for scanned pages.
-- [ ] A stable Android signing key and update APK compatible with an existing installation.
-- [ ] A Windows installer/updater.
+- [ ] Insert, move, replace, and remove embedded image objects.
+- [ ] Editable DOCX conversion with text/images and Arabic/RTL.
+- [ ] XLSX table detection and editable cells.
+- [ ] Arabic/multilingual OCR for scans.
+- [ ] Stable Android release signing and a reliable in-place update channel.
+- [ ] Windows installer/updater.
 
-## Platform and licensing decisions
+## Artifact details
 
-The current annotation path uses Syncfusion's Flutter PDF Viewer, whose package documents Android and Windows support, text markup, and saving serialized document bytes. It is a commercial package; confirm eligibility for Syncfusion's Community License before distributing. The existing `syncfusion_flutter_pdf` page-rotation engine is a separate dependency and its Windows support has not been established here. See [`EDITOR_TECHNICAL_DECISIONS.md`](EDITOR_TECHNICAL_DECISIONS.md) for sources and remaining engine trade-offs.
+Current APK sizes: `armeabi-v7a` 19,904,675 bytes; `arm64-v8a` 21,944,651 bytes; `x86_64` 23,583,573 bytes. The Windows portable ZIP is 16,903,428 bytes. The runs are [Android](https://github.com/mhamedshasho/redro-tools/actions/runs/43092534621) and [Windows](https://github.com/mhamedshasho/redro-tools/actions/runs/43092540575). These are 30-day Actions artifacts, not a published GitHub Release.
 
-The APK's Android application ID is `com.redro.redro_pdf`. An in-place APK update requires the same application ID, a compatible signing certificate, and a higher version code. Earlier CI artifacts use an ephemeral debug key, so they are not a valid long-term update baseline. A test update also requires the actual installed APK or trusted signer fingerprint and an Android device/emulator.
+The Android application ID is `com.redro.redro_pdf`, and the source package version is `0.2.0+2`. An in-place update requires the same application ID, compatible signing certificate, and a higher version code.

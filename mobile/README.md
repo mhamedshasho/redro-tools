@@ -1,18 +1,28 @@
 # Redro PDF Converter — Flutter app
 
-The Flutter source targets Android and Windows. It uses a shared PDF viewer and currently includes local PDF tabs, page navigation, selectable-text highlighting, highlight colors, and Save Edited Copy. Page rotation is also present in source. The owner has not yet tested these editing changes; no feature tests were run by the assistant.
+The Android and Windows source is at commit `82deb04` for the latest build artifacts. Source features include local PDF tabs, page navigation, selectable-text highlighting with four colors, a Save Edited Copy path for annotations, page rotation, the supplied logo, English/Arabic interface labels, and light/dark appearance.
 
-The app includes the Redro PDF Converter logo and an English/Arabic interface direction toggle. This does not yet establish Arabic OCR or perfect mixed-script rendering in exported documents.
+The owner tests PDF behavior. For the current artifacts, the Android and Windows builds succeeded, while static analysis, automated tests, and the Windows executable launch check were skipped. Therefore, the highlighter/save workflow still needs owner testing with real PDFs.
+
+## Latest build downloads
+
+The [Android build run](https://github.com/mhamedshasho/redro-tools/actions/runs/43092534621) contains `redro-pdf-android-release-split`:
+
+- [arm64 APK — most current phones, 21,944,651 bytes](/home/ubuntu/work/deliverables/current-release/android-retry/app-arm64-v8a-release.apk)
+- [armeabi-v7a APK — 32-bit ARM, 19,904,675 bytes](/home/ubuntu/work/deliverables/current-release/android-retry/app-armeabi-v7a-release.apk)
+- [x86_64 APK, 23,583,573 bytes](/home/ubuntu/work/deliverables/current-release/android-retry/app-x86_64-release.apk)
+
+The [Windows build run](https://github.com/mhamedshasho/redro-tools/actions/runs/43092540575) contains [the portable ZIP (16,903,428 bytes)](/home/ubuntu/work/deliverables/current-release/windows/redro-pdf-windows-portable.zip). Extract the complete ZIP; keep `redro_pdf.exe`, the DLLs, and `data/` together.
+
+These are Actions artifacts, not a published GitHub Release. They are retained for 30 days. The Android APKs are signed with a temporary CI debug key, so they may not update an app signed with another key. The app identifier is `com.redro.redro_pdf`; the source package version is `0.2.0+2`.
 
 ## Not implemented yet
 
-The current code does not edit existing page text or replace/delete embedded image objects. DOCX/XLSX conversion and scanned-PDF OCR are also still outstanding. The requested Office exports must preserve as much editable text, images, and table data as the source permits; they must not be presented as complete if the output is only page images.
-
-The app uses Syncfusion's commercial Flutter PDF Viewer. The owner must confirm eligibility for the Syncfusion Community License or arrange another valid license before distribution.
+The app does not edit existing PDF text or replace/delete embedded image objects. DOCX/XLSX conversion and Arabic or multilingual OCR are also outstanding. The Syncfusion PDF Viewer is a commercial package; confirm Community License eligibility or arrange a valid license before distributing.
 
 ## Build locally
 
-With Flutter stable and the target platform toolchain installed:
+With Flutter stable and the target toolchain installed:
 
 ```sh
 cd mobile
@@ -20,9 +30,3 @@ flutter pub get
 flutter build apk --release --split-per-abi
 flutter build windows --release
 ```
-
-The owner tests app behavior. The assistant is not running PDF feature tests.
-
-## Android updates
-
-The Android application ID must remain `com.redro.redro_pdf`. Updating an existing installation requires a newer version code and a signing certificate compatible with the APK already installed. Earlier CI artifacts were signed with an ephemeral debug key; they are not a stable update channel. The Windows package is a portable ZIP, with no setup/updater yet.
