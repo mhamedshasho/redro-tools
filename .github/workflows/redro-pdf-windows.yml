@@ -1,0 +1,117 @@
+name: Redro PDF Windows Portable Build
+
+on:
+  workflow_dispatch:
+    inputs:
+      run_checks:
+        description: Run analyzer, automated tests, and executable smoke check before packaging
+        required: false
+        default: false
+        type: boolean
+  push:
+    paths:
+      - "mobile/**"
+      - ".github/workflows/redro-pdf-windows.yml"
+  pull_request:
+    paths:
+      - "mobile/**"
+      - ".github/workflows/redro-pdf-windows.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: redro-pdf-windows-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.47.9"
+          cache: true
+      - name: Show Flutter version
+        run: flutter --version
+      - name: Generate Windows platform scaffolding
+        working-directory: mobile
+        shell: pwsh
+        run: |
+          flutter create --platforms=windows --project-name=redro_pdf --org=com.redro --no-pub .
+          if (Test-Path test/widget_test.dart) { Remove-Item test/widget_test.dart -Force }
+      - name: Install dependencies
+        working-directory: mobile
+        run: flutter pub get
+      - name: Upload resolved dependency lockfile
+        uses: actions/upload-artifact@v4
+        with:
+          name: redro-pdf-dependency-lock
+          path: mobile/pubspec.lock
+          if-no-files-found: error
+          retention-days: 30
+      - name: Static analysis
+        if: ${{ github.event_name != 'workflow_dispatch' || inputs.run_checks }}
+        working-directory: mobile
+        run: flutter analyze
+      - name: Run automated tests
+        if: ${{ github.event_name != 'workflow_dispatch' || inputs.run_checks }}
+        working-directory: mobile
+        run: flutter test
+      - name: Set Windows display name
+        shell: pwsh
+        run: |
+          $runner = "mobile/windows/runner/main.cpp"
+          if (Test-Path $runner) {
+            $source = Get-Content $runner -Raw
+            $source = $source.Replace('L"redro_pdf"', 'L"Redro PDF"')
+            Set-Content -Path $runner -Value $source -NoNewline
+          }
+      - name: Build Windows release
+        working-directory: mobile
+        run: flutter build windows --release
+      - name: Smoke test Windows executable startup
+        if: ${{ github.event_name != 'workflow_dispatch' || inputs.run_checks }}
+        shell: pwsh
+        run: |
+          $candidates = @(
+            "mobile/build/windows/x64/runner/Release/redro_pdf.exe",
+            "mobile/build/windows/runner/Release/redro_pdf.exe"
+          )
+          $exe = $candidates | Where-Object { Test-Path $_ } | Select-Object -First 1
+          if (!$exe) { throw "Windows executable was not produced." }
+          $process = Start-Process -FilePath (Resolve-Path $exe) -PassThru
+          Start-Sleep -Seconds 5
+          if ($process.HasExited) { throw "Windows executable exited during startup smoke test (code $($process.ExitCode))." }
+          Stop-Process -Id $process.Id -Force
+      - name: Package portable files
+        shell: pwsh
+        run: |
+          $candidates = @(
+            "mobile/build/windows/x64/runner/Release",
+            "mobile/build/windows/runner/Release"
+          )
+          $release = $candidates | Where-Object { Test-Path "$_/redro_pdf.exe" } | Select-Object -First 1
+          if (!$release) { throw "Windows executable was not produced in a known Release directory." }
+          if (!(Test-Path "$release/flutter_windows.dll")) { throw "Required Flutter runtime flutter_windows.dll is missing." }
+          if (!(Test-Path "$release/data/icudtl.dat")) { throw "Required Flutter ICU data file is missing." }
+          Compress-Archive -Path "$release/*" -DestinationPath redro-pdf-windows-portable.zip -Force
+      - name: Verify portable package
+        shell: pwsh
+        run: |
+          $archive = "redro-pdf-windows-portable.zip"
+          if (!(Test-Path $archive)) { throw "Portable package missing." }
+          if ((Get-Item $archive).Length -le 100000) { throw "Portable package is unexpectedly small." }
+          $verify = Join-Path $env:RUNNER_TEMP "redro-pdf-portable-verify"
+          Expand-Archive -Path $archive -DestinationPath $verify -Force
+          if (!(Get-ChildItem $verify -Recurse -Filter "redro_pdf.exe")) { throw "Executable is missing from the ZIP." }
+          if (!(Get-ChildItem $verify -Recurse -Filter "flutter_windows.dll")) { throw "Flutter runtime is missing from the ZIP." }
+          if (!(Get-ChildItem $verify -Recurse -Filter "icudtl.dat")) { throw "ICU data is missing from the ZIP." }
+      - name: Upload portable ZIP
+        uses: actions/upload-artifact@v4
+        with:
+          name: redro-pdf-windows-portable
+          path: redro-pdf-windows-portable.zip
+          if-no-files-found: error
+          retention-days: 30
