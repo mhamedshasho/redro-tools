@@ -20,3 +20,6 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+  assets:
+    - assets/branding/redro_logo.jpg
+    - assets/branding/redro_logo_mark.jpg

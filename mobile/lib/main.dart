@@ -345,14 +345,12 @@ class _PdfHomePageState extends State<PdfHomePage> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Container(
-                padding: const EdgeInsets.all(22),
-                decoration: BoxDecoration(
-                  color: scheme.primaryContainer,
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(Icons.picture_as_pdf_rounded,
-                    size: 52, color: scheme.primary),
+              Image.asset(
+                'assets/branding/redro_logo.jpg',
+                width: 180,
+                height: 200,
+                fit: BoxFit.contain,
+                semanticLabel: 'Redro PDF Converter',
               ),
               const SizedBox(height: 22),
               Text(
@@ -415,7 +413,13 @@ class _PdfHomePageState extends State<PdfHomePage> {
           title: const Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(Icons.picture_as_pdf_rounded, color: Color(0xFFE53935)),
+              Image(
+                image: AssetImage('assets/branding/redro_logo_mark.jpg'),
+                width: 38,
+                height: 38,
+                fit: BoxFit.contain,
+                semanticLabel: 'Redro PDF Converter',
+              ),
               SizedBox(width: 8),
               Text('Redro PDF', style: TextStyle(fontWeight: FontWeight.w800)),
             ],
