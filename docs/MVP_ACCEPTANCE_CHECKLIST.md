@@ -1,41 +1,32 @@
-# Redro PDF Converter — implementation status
+# Redro PDF Converter — conversion status
 
-This checklist separates source/build availability from user-facing behavior. The owner tests PDF behavior; the assistant did not run app tests.
+The primary workflow is to select a PDF, choose Word or Excel, and save a new output file. The owner tests the conversion quality; no app or PDF feature tests have been run by the assistant.
 
-## Present in source and packaged in the current build
+## Implemented in source
 
-- [x] Redro logo assets and branded UI.
-- [x] Local PDF selection, multiple document tabs, and page navigation.
-- [x] Shared Android/Windows PDF viewer dependency.
-- [x] Highlighter mode and four highlight colors.
-- [x] Save Edited Copy serializes viewer annotation bytes to a separate PDF file.
-- [x] Page rotation code and save-copy path.
-- [x] English/Arabic interface labels, LTR/RTL UI toggle, and light/dark appearance.
-- [x] Android release APKs built successfully from `82deb04`: [Android Actions run](https://github.com/mhamedshasho/redro-tools/actions/runs/43092534621).
-- [x] Windows portable ZIP built and package contents verified from `82deb04`: [Windows Actions run](https://github.com/mhamedshasho/redro-tools/actions/runs/43092540575).
+- [x] Two direct choices: PDF to Word and PDF to Excel.
+- [x] Local PDF selection and save dialog for the converted file; the source PDF is not overwritten.
+- [x] Extract selectable PDF text page by page using the Syncfusion PDF text extractor.
+- [x] DOCX creation with editable text paragraphs, page headings, and basic RTL markup for Arabic lines.
+- [x] XLSX creation with one row for each extracted text line and page/line number columns.
+- [x] User-facing error when no selectable text is found, including a note that scanned-page OCR is not available.
+- [x] Logo, Arabic/English app labels, RTL interface direction toggle, and theme toggle.
+- [x] Highlighter/editor workflow removed from the primary app.
 
-The manual runs skipped static analysis, automated tests, and the Windows executable launch check, as requested. Successful compilation/package creation does not prove that the annotation/save behavior works on real PDFs.
+## Owner testing required
 
-## Owner testing still required
+- [ ] Convert a normal text PDF to DOCX and open it in Microsoft Word or another DOCX reader.
+- [ ] Convert the same PDF to XLSX and check that the extracted lines and page numbers are editable.
+- [ ] Convert Arabic and mixed Arabic/English PDFs and check text order/shaping.
+- [ ] Confirm that scanned/image-only PDFs show the OCR limitation rather than a misleading output.
+- [ ] Install and try the Android and Windows builds after they are produced.
 
-- [ ] Install/open the current APK on Android and open a real PDF.
-- [ ] Open a real PDF in the Windows executable.
-- [ ] Highlight text, change color, save a copy, reopen it, and verify the annotation persists.
-- [ ] Check deletion/editing of highlights, Arabic-only/English-only/mixed-direction PDFs, page rotation, and large/encrypted/damaged files.
-- [ ] Test whether the new APK updates the currently installed app. It requires a compatible signer; the CI APKs use a temporary debug key.
+## Known limits of this first conversion path
 
-## Still not implemented
+Word paragraphs are editable text, but original layout, fonts, images, and exact page positioning are not reconstructed. Excel currently receives one extracted text line per row; table detection and cell reconstruction are not implemented. Scanned pages require OCR, which is not included. No output-quality or app tests are claimed.
 
-- [ ] Direct editing of existing PDF text objects.
-- [ ] Insert, move, replace, and remove embedded image objects.
-- [ ] Editable DOCX conversion with text/images and Arabic/RTL.
-- [ ] XLSX table detection and editable cells.
-- [ ] Arabic/multilingual OCR for scans.
-- [ ] Stable Android release signing and a reliable in-place update channel.
-- [ ] Windows installer/updater.
+## Licensing and updates
 
-## Artifact details
+PDF extraction uses the commercial Syncfusion Flutter PDF package; confirm eligibility for a Community License or arrange a commercial license before distribution. The `excel` package is MIT-licensed. DOCX is written as Open XML using Dart's `archive` library.
 
-Current APK sizes: `armeabi-v7a` 19,904,675 bytes; `arm64-v8a` 21,944,651 bytes; `x86_64` 23,583,573 bytes. The Windows portable ZIP is 16,903,428 bytes. The runs are [Android](https://github.com/mhamedshasho/redro-tools/actions/runs/43092534621) and [Windows](https://github.com/mhamedshasho/redro-tools/actions/runs/43092540575). These are 30-day Actions artifacts, not a published GitHub Release.
-
-The Android application ID is `com.redro.redro_pdf`, and the source package version is `0.2.0+2`. An in-place update requires the same application ID, compatible signing certificate, and a higher version code.
+Android package version is `0.3.0+3`, with application ID `com.redro.redro_pdf`. An in-place update requires a compatible signing certificate and higher version code; the current CI setup uses temporary signing.

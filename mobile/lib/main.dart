@@ -1,11 +1,12 @@
+import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
+import 'package:archive/archive.dart';
+import 'package:excel/excel.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:syncfusion_flutter_pdf/pdf.dart' as sfpdf;
-import 'package:syncfusion_flutter_pdfviewer/pdfviewer.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -26,14 +27,13 @@ class _RedroPdfAppState extends State<RedroPdfApp> {
   @override
   Widget build(BuildContext context) {
     const red = Color(0xFFE53935);
-    final colorScheme = ColorScheme.fromSeed(seedColor: red);
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      title: 'Redro PDF Editor & Converter',
+      title: 'Redro PDF Converter',
       locale: Locale(_arabic ? 'ar' : 'en'),
       themeMode: _themeMode,
       theme: ThemeData(
-        colorScheme: colorScheme,
+        colorScheme: ColorScheme.fromSeed(seedColor: red),
         useMaterial3: true,
         scaffoldBackgroundColor: const Color(0xFFF6F6F7),
         appBarTheme: const AppBarTheme(centerTitle: false),
@@ -45,7 +45,7 @@ class _RedroPdfAppState extends State<RedroPdfApp> {
         ),
         useMaterial3: true,
       ),
-      home: PdfHomePage(
+      home: ConverterHomePage(
         arabic: _arabic,
         onLanguageChanged: () => setState(() => _arabic = !_arabic),
         onThemeChanged: () => setState(() {
@@ -58,27 +58,15 @@ class _RedroPdfAppState extends State<RedroPdfApp> {
   }
 }
 
-class _OpenPdf {
-  _OpenPdf({
-    required this.path,
-    required this.name,
-    required this.viewerController,
-  });
+enum _ExportFormat { word, excel }
 
-  final String path;
-  final String name;
-  final PdfViewerController viewerController;
-  int pageCount = 0;
-  int currentPage = 1;
-  final Map<int, int> pageRotations = {};
-
-  void dispose() {
-    viewerController.dispose();
-  }
+class _ConversionException implements Exception {
+  const _ConversionException(this.message);
+  final String message;
 }
 
-class PdfHomePage extends StatefulWidget {
-  const PdfHomePage({
+class ConverterHomePage extends StatefulWidget {
+  const ConverterHomePage({
     super.key,
     required this.arabic,
     required this.onLanguageChanged,
@@ -90,45 +78,28 @@ class PdfHomePage extends StatefulWidget {
   final VoidCallback onThemeChanged;
 
   @override
-  State<PdfHomePage> createState() => _PdfHomePageState();
+  State<ConverterHomePage> createState() => _ConverterHomePageState();
 }
 
-class _PdfHomePageState extends State<PdfHomePage> {
-  final List<_OpenPdf> _documents = [];
-  final TextEditingController _pageInput = TextEditingController(text: '1');
-  int _activeIndex = -1;
-  String? _error;
+class _ConverterHomePageState extends State<ConverterHomePage> {
   bool _busy = false;
-  Color _highlightColor = const Color(0xFFFFEB3B);
-  static const List<Color> _highlightColors = [
-    Color(0xFFFFEB3B),
-    Color(0xFF80CBC4),
-    Color(0xFF90CAF9),
-    Color(0xFFF48FB1),
-  ];
+  String? _status;
+  String? _error;
 
   bool get _isArabic => widget.arabic;
-  _OpenPdf? get _active =>
-      _activeIndex >= 0 && _activeIndex < _documents.length
-          ? _documents[_activeIndex]
-          : null;
 
-  String _text(String english, String arabic) => _isArabic ? arabic : english;
+  String _text(String english, String arabic) =>
+      _isArabic ? arabic : english;
 
-  String _highlightColorName(Color color) {
-    if (color == _highlightColors[0]) return _text('Yellow', 'أصفر');
-    if (color == _highlightColors[1]) return _text('Teal', 'فيروزي');
-    if (color == _highlightColors[2]) return _text('Blue', 'أزرق');
-    return _text('Pink', 'وردي');
-  }
-
-  Future<void> _openPdf() async {
+  Future<void> _convert(_ExportFormat format) async {
     if (_busy) return;
     setState(() {
       _busy = true;
+      _status = _text('Choose a PDF file…', 'اختر ملف PDF…');
       _error = null;
     });
 
+    sfpdf.PdfDocument? document;
     try {
       final selected = await FilePicker.pickFile(
         type: FileType.custom,
@@ -137,348 +108,243 @@ class _PdfHomePageState extends State<PdfHomePage> {
       if (selected == null) return;
       final path = selected.path;
       if (path == null) {
-        throw const FormatException('The selected PDF has no readable local path.');
+        throw const _ConversionException(
+          'Could not read the selected file from this device.',
+        );
+      }
+      final sourceFile = File(path);
+      if (!await sourceFile.exists() || await sourceFile.length() == 0) {
+        throw const _ConversionException('The selected PDF is empty or unavailable.');
       }
 
-      final existingIndex = _documents.indexWhere((item) => item.path == path);
-      if (existingIndex >= 0) {
-        if (mounted) {
-          setState(() {
-            _activeIndex = existingIndex;
-            _pageInput.text = '${_documents[existingIndex].currentPage}';
-          });
-        }
-        return;
+      final inputBytes = await sourceFile.readAsBytes();
+      document = sfpdf.PdfDocument(inputBytes: inputBytes);
+      final pageCount = document.pages.count;
+      if (pageCount == 0) {
+        throw const _ConversionException('This PDF contains no pages.');
       }
 
-      final file = File(path);
-      if (!await file.exists() || await file.length() == 0) {
-        throw const FormatException('The selected file is empty or unavailable.');
-      }
-
-      final viewerController = PdfViewerController();
-      final annotationSettings = PdfAnnotationSettings();
-      annotationSettings.highlight.color = _highlightColor;
-      annotationSettings.highlight.opacity = 0.38;
-      viewerController.annotationSettings = annotationSettings;
-      final opened = _OpenPdf(
-        path: path,
-        name: selected.name,
-        viewerController: viewerController,
-      );
-
-      if (!mounted) {
-        opened.dispose();
-        return;
-      }
-      setState(() {
-        _documents.add(opened);
-        _activeIndex = _documents.length - 1;
-        _pageInput.text = '1';
-        _error = null;
-      });
-    } catch (error) {
-      if (mounted) {
-        final detail = error is FormatException
-            ? error.message
-            : _text('Check that the file is a valid, unlocked PDF.',
-                'تحقق من أن الملف PDF صالح وغير محمي بكلمة مرور.');
-        setState(() => _error =
-            '${_text('Could not open this PDF.', 'تعذّر فتح ملف PDF.')} $detail');
-      }
-    } finally {
-      if (mounted) setState(() => _busy = false);
-    }
-  }
-
-  void _selectDocument(int index) {
-    setState(() {
-      _activeIndex = index;
-      _pageInput.text = '${_documents[index].currentPage}';
-      _error = null;
-    });
-  }
-
-  void _closeDocument(int index) {
-    final closing = _documents.removeAt(index);
-    closing.dispose();
-    setState(() {
-      if (_documents.isEmpty) {
-        _activeIndex = -1;
-      } else if (index < _activeIndex) {
-        _activeIndex--;
-      } else if (index == _activeIndex) {
-        _activeIndex = index.clamp(0, _documents.length - 1).toInt();
-      }
-      final active = _active;
-      _pageInput.text = active == null ? '1' : '${active.currentPage}';
-    });
-  }
-
-  void _goToPage(int requestedPage) {
-    final document = _active;
-    if (document == null || document.pageCount == 0) return;
-    final page = requestedPage.clamp(1, document.pageCount).toInt();
-    document.viewerController.jumpToPage(page);
-    setState(() {
-      document.currentPage = page;
-      _pageInput.text = '$page';
-    });
-  }
-
-  void _changePage(int amount) {
-    final document = _active;
-    if (document != null) _goToPage(document.currentPage + amount);
-  }
-
-  void _toggleHighlighter() {
-    final document = _active;
-    if (document == null) return;
-    final controller = document.viewerController;
-    controller.annotationMode =
-        controller.annotationMode == PdfAnnotationMode.highlight
-            ? PdfAnnotationMode.none
-            : PdfAnnotationMode.highlight;
-    setState(() => _error = null);
-  }
-
-  void _setHighlightColor(Color color) {
-    final document = _active;
-    setState(() => _highlightColor = color);
-    if (document == null) return;
-    final settings = document.viewerController.annotationSettings;
-    settings.highlight.color = color;
-    settings.highlight.opacity = 0.38;
-    document.viewerController.annotationSettings = settings;
-    document.viewerController.annotationMode = PdfAnnotationMode.highlight;
-  }
-
-  Widget _buildHighlightColorMenu() => PopupMenuButton<Color>(
-        tooltip: _text('Choose highlight color', 'اختيار لون التمييز'),
-        onSelected: _setHighlightColor,
-        itemBuilder: (context) => _highlightColors
-            .map((color) => PopupMenuItem<Color>(
-                  value: color,
-                  child: Row(
-                    children: [
-                      CircleAvatar(backgroundColor: color, radius: 10),
-                      const SizedBox(width: 12),
-                      Text(_highlightColorName(color)),
-                    ],
-                  ),
-                ))
-            .toList(),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 10),
-          child: Container(
-            width: 24,
-            height: 24,
-            decoration: BoxDecoration(
-              color: _highlightColor,
-              shape: BoxShape.circle,
-              border: Border.all(color: Theme.of(context).colorScheme.outline),
-            ),
-          ),
-        ),
-      );
-
-  void _rotateCurrentPage() {
-    final document = _active;
-    if (document == null) return;
-    final current = document.pageRotations[document.currentPage] ?? 0;
-    setState(() {
-      document.pageRotations[document.currentPage] = (current + 90) % 360;
-      _error = null;
-    });
-  }
-
-  Future<void> _saveEditedCopy() async {
-    final source = _active;
-    if (source == null || _busy) return;
-    setState(() {
-      _busy = true;
-      _error = null;
-    });
-    sfpdf.PdfDocument? editable;
-    try {
-      var bytes = await source.viewerController.saveDocument();
-      if (source.pageRotations.isNotEmpty) {
-        editable = sfpdf.PdfDocument(inputBytes: Uint8List.fromList(bytes));
-        for (final entry in source.pageRotations.entries) {
-          final pageIndex = entry.key - 1;
-          if (pageIndex < 0 || pageIndex >= editable.pages.count) continue;
-          final angle = entry.value;
-          final page = editable.pages[pageIndex];
-          page.rotation = switch (angle) {
-            90 => sfpdf.PdfPageRotateAngle.rotateAngle90,
-            180 => sfpdf.PdfPageRotateAngle.rotateAngle180,
-            270 => sfpdf.PdfPageRotateAngle.rotateAngle270,
-            _ => sfpdf.PdfPageRotateAngle.rotateAngle0,
-          };
-        }
-        bytes = await editable.save();
-      }
-      final baseName = source.name.toLowerCase().endsWith('.pdf')
-          ? source.name.substring(0, source.name.length - 4)
-          : source.name;
-      final savedPath = await FilePicker.saveFile(
-        dialogTitle: _text('Save edited PDF copy', 'حفظ نسخة PDF المعدّلة'),
-        fileName: '${baseName}_edited.pdf',
-        type: FileType.custom,
-        allowedExtensions: const ['pdf'],
-        bytes: Uint8List.fromList(bytes),
-      );
-      if (savedPath == null) return;
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(_text(
-          'Edited PDF copy saved successfully.',
-          'تم حفظ نسخة PDF المعدّلة بنجاح.',
-        ))),
-      );
-    } catch (error) {
-      if (mounted) {
-        setState(() => _error = _text(
-          'Could not save the edited PDF. The original file was not changed.',
-          'تعذّر حفظ ملف PDF المعدّل. لم يتم تغيير الملف الأصلي.',
-        ));
-      }
-    } finally {
-      editable?.dispose();
-      if (mounted) setState(() => _busy = false);
-    }
-  }
-
-  Widget _buildReader(_OpenPdf document) {
-    return SfPdfViewer.file(
-      File(document.path),
-      key: ValueKey('pdf-${document.path}'),
-      controller: document.viewerController,
-      enableTextSelection: true,
-      canShowTextSelectionMenu: true,
-      onDocumentLoaded: (details) {
+      final extractor = sfpdf.PdfTextExtractor(document);
+      final pages = <List<String>>[];
+      var pagesWithoutText = 0;
+      for (var pageIndex = 0; pageIndex < pageCount; pageIndex++) {
         if (!mounted) return;
         setState(() {
-          document.pageCount = details.document.pages.count;
-          document.currentPage = document.viewerController.pageNumber;
-          if (identical(document, _active)) {
-            _pageInput.text = '${document.currentPage}';
-          }
-        });
-      },
-      onDocumentLoadFailed: (details) {
-        if (!mounted) return;
-        setState(() {
-          _error = _text(
-            'Could not open ${document.name}: ${details.description}',
-            'تعذّر فتح ${document.name}: ${details.description}',
+          _status = _text(
+            'Reading page ${pageIndex + 1} of $pageCount…',
+            'جارٍ قراءة الصفحة ${pageIndex + 1} من $pageCount…',
           );
         });
-      },
-      onPageChanged: (details) => _onPageChanged(document, details),
-    );
-  }
-  void _onPageChanged(_OpenPdf document, PdfPageChangedDetails details) {
-    document.currentPage = details.newPageNumber;
-    if (!mounted || !identical(document, _active)) return;
-    setState(() => _pageInput.text = '${details.newPageNumber}');
+        final lines = extractor
+            .extractTextLines(
+              startPageIndex: pageIndex,
+              endPageIndex: pageIndex,
+            )
+            .map((line) => line.text.trim())
+            .where((line) => line.isNotEmpty)
+            .toList(growable: false);
+        if (lines.isEmpty) pagesWithoutText++;
+        pages.add(lines);
+      }
+
+      if (pages.every((page) => page.isEmpty)) {
+        throw _ConversionException(_text(
+          'No selectable text was found. This PDF may be scanned images; OCR is not available yet.',
+          'لم يتم العثور على نص قابل للاستخراج. قد يكون الملف صورًا ممسوحة ضوئيًا؛ ميزة OCR غير متاحة حاليًا.',
+        ));
+      }
+
+      if (!mounted) return;
+      setState(() {
+        _status = format == _ExportFormat.word
+            ? _text('Creating editable Word document…', 'جارٍ إنشاء ملف Word قابل للتحرير…')
+            : _text('Creating editable Excel workbook…', 'جارٍ إنشاء ملف Excel قابل للتحرير…');
+      });
+
+      final baseName = _baseName(selected.name);
+      final extension = format == _ExportFormat.word ? 'docx' : 'xlsx';
+      final outputBytes = format == _ExportFormat.word
+          ? _buildDocx(pages)
+          : _buildXlsx(pages);
+      final mimeType = format == _ExportFormat.word
+          ? 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+          : 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+      final destination = await FilePicker.saveFile(
+        dialogTitle: _text('Save converted file', 'حفظ الملف المحوّل'),
+        fileName: '$baseName.$extension',
+        bytes: outputBytes,
+        mimeType: mimeType,
+      );
+      if (destination == null || !mounted) return;
+
+      final skippedMessage = pagesWithoutText == 0
+          ? ''
+          : _text(
+              ' $pagesWithoutText page(s) had no selectable text and were left empty.',
+              ' تُركت $pagesWithoutText صفحة بلا نص قابل للاستخراج فارغة.',
+            );
+      setState(() {
+        _status = _text(
+          'Saved ${baseName}.$extension.$skippedMessage',
+          'تم حفظ ${baseName}.$extension.$skippedMessage',
+        );
+      });
+    } on _ConversionException catch (error) {
+      if (mounted) setState(() => _error = error.message);
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          _error = _text(
+            'Conversion failed. Check that this is a readable, unlocked PDF and try again.',
+            'فشل التحويل. تأكد أن ملف PDF قابل للقراءة وغير محمي، ثم حاول مرة أخرى.',
+          );
+        });
+      }
+    } finally {
+      document?.dispose();
+      if (mounted) {
+        setState(() {
+          _busy = false;
+          if (_error != null) _status = null;
+        });
+      }
+    }
   }
 
-  Widget _buildDocumentTab(int index, _OpenPdf document) {
-    final selected = index == _activeIndex;
-    return Padding(
-      padding: const EdgeInsetsDirectional.only(end: 8),
-      child: Material(
-        color: selected
-            ? Theme.of(context).colorScheme.secondaryContainer
-            : Theme.of(context).colorScheme.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(12),
-        child: InkWell(
-          borderRadius: BorderRadius.circular(12),
-          onTap: () => _selectDocument(index),
-          child: Padding(
-            padding: const EdgeInsetsDirectional.only(start: 12, end: 4),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(Icons.picture_as_pdf_rounded,
-                    size: 18, color: Theme.of(context).colorScheme.primary),
-                const SizedBox(width: 8),
-                ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 190),
-                  child: Text(
-                    document.name,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
-                    ),
-                  ),
-                ),
-                IconButton(
-                  tooltip: _text('Close document', 'إغلاق المستند'),
-                  visualDensity: VisualDensity.compact,
-                  onPressed: () => _closeDocument(index),
-                  icon: const Icon(Icons.close_rounded, size: 18),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
+  String _baseName(String fileName) {
+    final name = fileName.toLowerCase().endsWith('.pdf')
+        ? fileName.substring(0, fileName.length - 4)
+        : fileName;
+    final cleaned = name.trim().replaceAll(RegExp(r'[\\/:*?"<>|]'), '_');
+    return cleaned.isEmpty ? 'converted_document' : cleaned;
   }
 
-  Widget _buildEmptyState(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    return Center(
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 480),
+  Uint8List _buildXlsx(List<List<String>> pages) {
+    final workbook = Excel.createExcel();
+    workbook.rename('Sheet1', 'Extracted text');
+    final sheet = workbook['Extracted text'];
+    sheet.appendRow([
+      TextCellValue('Page'),
+      TextCellValue('Line'),
+      TextCellValue('Extracted text'),
+    ]);
+    for (var pageIndex = 0; pageIndex < pages.length; pageIndex++) {
+      final lines = pages[pageIndex];
+      for (var lineIndex = 0; lineIndex < lines.length; lineIndex++) {
+        sheet.appendRow([
+          IntCellValue(pageIndex + 1),
+          IntCellValue(lineIndex + 1),
+          TextCellValue(lines[lineIndex]),
+        ]);
+      }
+    }
+    sheet.setColumnWidth(0, 10);
+    sheet.setColumnWidth(1, 10);
+    sheet.setColumnWidth(2, 80);
+    final encoded = workbook.save();
+    if (encoded == null || encoded.isEmpty) {
+      throw const _ConversionException('Could not create the Excel workbook.');
+    }
+    return Uint8List.fromList(encoded);
+  }
+
+  Uint8List _buildDocx(List<List<String>> pages) {
+    final body = StringBuffer();
+    for (var pageIndex = 0; pageIndex < pages.length; pageIndex++) {
+      if (pageIndex > 0) {
+        body.write('<w:p><w:r><w:br w:type="page"/></w:r></w:p>');
+      }
+      body.write(_wordParagraph(
+        _text('Page ${pageIndex + 1}', 'الصفحة ${pageIndex + 1}'),
+        heading: true,
+      ));
+      for (final line in pages[pageIndex]) {
+        body.write(_wordParagraph(line));
+      }
+    }
+
+    const documentXml = '''<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:body>
+    BODY_CONTENT
+    <w:sectPr>
+      <w:pgSz w:w="11906" w:h="16838"/>
+      <w:pgMar w:top="1134" w:right="1134" w:bottom="1134" w:left="1134" w:header="708" w:footer="708" w:gutter="0"/>
+    </w:sectPr>
+  </w:body>
+</w:document>''';
+
+    final archive = Archive()
+      ..addFile(ArchiveFile.string(
+        '[Content_Types].xml',
+        '''<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+  <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+  <Default Extension="xml" ContentType="application/xml"/>
+  <Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>
+</Types>''',
+      ))
+      ..addFile(ArchiveFile.string(
+        '_rels/.rels',
+        '''<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/>
+</Relationships>''',
+      ))
+      ..addFile(ArchiveFile.string(
+        'word/document.xml',
+        documentXml.replaceFirst('BODY_CONTENT', body.toString()),
+      ));
+    final encoded = ZipEncoder().encode(archive);
+    if (encoded == null || encoded.isEmpty) {
+      throw const _ConversionException('Could not create the Word document.');
+    }
+    return Uint8List.fromList(encoded);
+  }
+
+  String _wordParagraph(String text, {bool heading = false}) {
+    final isRtl = RegExp(r'[\u0590-\u08FF]').hasMatch(text);
+    final paragraphProperties = isRtl
+        ? '<w:pPr><w:bidi/><w:jc w:val="right"/></w:pPr>'
+        : '';
+    final runProperties = '<w:rPr>${isRtl ? '<w:rtl/>' : ''}${heading ? '<w:b/><w:sz w:val="30"/>' : ''}</w:rPr>';
+    final escaped = const HtmlEscape(HtmlEscapeMode.text).convert(text);
+    return '<w:p>$paragraphProperties<w:r>$runProperties<w:t xml:space="preserve">$escaped</w:t></w:r></w:p>';
+  }
+
+  Widget _formatCard({
+    required _ExportFormat format,
+    required IconData icon,
+    required String title,
+    required String description,
+    required Color color,
+  }) {
+    return Card(
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: _busy ? null : () => _convert(format),
         child: Padding(
-          padding: const EdgeInsets.all(28),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
+          padding: const EdgeInsets.all(20),
+          child: Row(
             children: [
-              Image.asset(
-                'assets/branding/redro_logo.jpg',
-                width: 180,
-                height: 200,
-                fit: BoxFit.contain,
-                semanticLabel: 'Redro PDF Converter',
+              CircleAvatar(
+                radius: 28,
+                backgroundColor: color.withValues(alpha: 0.14),
+                child: Icon(icon, color: color, size: 30),
               ),
-              const SizedBox(height: 22),
-              Text(
-                _text('Your PDFs, ready to read.', 'ملفات PDF جاهزة للقراءة.'),
-                textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                      fontWeight: FontWeight.w800,
-                    ),
-              ),
-              const SizedBox(height: 10),
-              Text(
-                _text(
-                  'Open documents stored on this device. Your files are not uploaded.',
-                  'افتح المستندات المخزنة على هذا الجهاز. لا يتم رفع ملفاتك.',
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(title, style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800)),
+                    const SizedBox(height: 5),
+                    Text(description, style: Theme.of(context).textTheme.bodyMedium),
+                  ],
                 ),
-                textAlign: TextAlign.center,
-                style: TextStyle(color: scheme.onSurfaceVariant),
               ),
-              const SizedBox(height: 22),
-              FilledButton.icon(
-                onPressed: _busy ? null : _openPdf,
-                icon: const Icon(Icons.folder_open_rounded),
-                label: Text(_busy
-                    ? _text('Opening…', 'جارٍ الفتح…')
-                    : _text('Open PDF', 'فتح ملف PDF')),
-              ),
-              if (_error != null) ...[
-                const SizedBox(height: 16),
-                Text(
-                  _error!,
-                  textAlign: TextAlign.center,
-                  style: TextStyle(color: scheme.error),
-                ),
-              ],
+              const SizedBox(width: 8),
+              const Icon(Icons.chevron_right_rounded),
             ],
           ),
         ),
@@ -487,23 +353,13 @@ class _PdfHomePageState extends State<PdfHomePage> {
   }
 
   @override
-  void dispose() {
-    for (final document in _documents) {
-      document.dispose();
-    }
-    _pageInput.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
-    final document = _active;
+    final scheme = Theme.of(context).colorScheme;
     final isArabic = widget.arabic;
     return Directionality(
       textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
       child: Scaffold(
         appBar: AppBar(
-          titleSpacing: 20,
           title: const Row(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -520,168 +376,92 @@ class _PdfHomePageState extends State<PdfHomePage> {
           ),
           actions: [
             TextButton(
-              onPressed: widget.onLanguageChanged,
+              onPressed: _busy ? null : widget.onLanguageChanged,
               child: Text(isArabic ? 'English' : 'العربية'),
             ),
             IconButton(
-              tooltip: isArabic ? 'تغيير المظهر' : 'Toggle appearance',
+              tooltip: _text('Toggle appearance', 'تغيير المظهر'),
               onPressed: widget.onThemeChanged,
               icon: const Icon(Icons.contrast_rounded),
             ),
-            if (document != null)
-              IconButton(
-                tooltip: _text('Open another PDF', 'فتح ملف آخر'),
-                onPressed: _busy ? null : _openPdf,
-                icon: const Icon(Icons.add_rounded),
-              ),
             const SizedBox(width: 8),
           ],
         ),
-        body: document == null
-            ? _buildEmptyState(context)
-            : Column(
-                children: [
-                  Material(
-                    color: Theme.of(context).colorScheme.surface,
-                    child: Column(
-                      children: [
-                        SizedBox(
-                          height: 54,
-                          child: ListView.builder(
-                            padding: const EdgeInsetsDirectional.only(
-                              start: 16,
-                              end: 8,
-                              top: 6,
-                              bottom: 6,
-                            ),
-                            scrollDirection: Axis.horizontal,
-                            itemCount: _documents.length,
-                            itemBuilder: (context, index) => _buildDocumentTab(
-                              index,
-                              _documents[index],
-                            ),
-                          ),
-                        ),
-                        const Divider(height: 1),
-                        SizedBox(
-                          height: 54,
-                          child: SingleChildScrollView(
-                            scrollDirection: Axis.horizontal,
-                            padding: const EdgeInsets.symmetric(horizontal: 8),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                IconButton(
-                                  tooltip: _text('Previous page', 'الصفحة السابقة'),
-                                  onPressed: document.currentPage > 1
-                                      ? () => _changePage(-1)
-                                      : null,
-                                  icon: const Icon(Icons.chevron_left_rounded),
-                                ),
-                                SizedBox(
-                                  width: 68,
-                                  child: TextField(
-                                    key: ValueKey('page-${document.path}'),
-                                    controller: _pageInput,
-                                    textAlign: TextAlign.center,
-                                    keyboardType: TextInputType.number,
-                                    inputFormatters: [
-                                      FilteringTextInputFormatter.digitsOnly,
-                                    ],
-                                    decoration: InputDecoration(
-                                      isDense: true,
-                                      contentPadding: const EdgeInsets.symmetric(
-                                        horizontal: 8,
-                                        vertical: 10,
-                                      ),
-                                      border: OutlineInputBorder(
-                                        borderRadius: BorderRadius.circular(10),
-                                      ),
-                                    ),
-                                    onSubmitted: (value) {
-                                      final page = int.tryParse(value);
-                                      if (page != null) {
-                                        _goToPage(page);
-                                      } else {
-                                        _pageInput.text = '${document.currentPage}';
-                                      }
-                                    },
-                                  ),
-                                ),
-                                Padding(
-                                  padding: const EdgeInsets.symmetric(horizontal: 8),
-                                  child: Text(
-                                    document.pageCount == 0
-                                        ? '/ …'
-                                        : '/ ${document.pageCount}',
-                                    style: TextStyle(
-                                      color: Theme.of(context)
-                                          .colorScheme
-                                          .onSurfaceVariant,
-                                    ),
-                                  ),
-                                ),
-                                IconButton(
-                                  tooltip: _text('Toggle highlighter', 'تشغيل/إيقاف التمييز'),
-                                  onPressed: _busy ? null : _toggleHighlighter,
-                                  icon: Icon(
-                                    document.viewerController.annotationMode ==
-                                            PdfAnnotationMode.highlight
-                                        ? Icons.highlight_rounded
-                                        : Icons.highlight_outlined,
-                                    color: document.viewerController.annotationMode ==
-                                            PdfAnnotationMode.highlight
-                                        ? Theme.of(context).colorScheme.primary
-                                        : null,
-                                  ),
-                                ),
-                                _buildHighlightColorMenu(),
-                                IconButton(
-                                  tooltip: _text('Rotate current page', 'تدوير الصفحة الحالية'),
-                                  onPressed: _busy ? null : _rotateCurrentPage,
-                                  icon: const Icon(Icons.rotate_right_rounded),
-                                ),
-                                TextButton.icon(
-                                  onPressed: _busy ? null : _saveEditedCopy,
-                                  icon: const Icon(Icons.save_alt_rounded),
-                                  label: Text(_text('Save copy', 'حفظ نسخة')),
-                                ),
-                                IconButton(
-                                  tooltip: _text('Next page', 'الصفحة التالية'),
-                                  onPressed: document.pageCount > 0 &&
-                                          document.currentPage < document.pageCount
-                                      ? () => _changePage(1)
-                                      : null,
-                                  icon: const Icon(Icons.chevron_right_rounded),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
+        body: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 720),
+            child: ListView(
+              padding: const EdgeInsets.all(20),
+              children: [
+                const SizedBox(height: 16),
+                Center(
+                  child: Image.asset(
+                    'assets/branding/redro_logo.jpg',
+                    height: 155,
+                    fit: BoxFit.contain,
+                    semanticLabel: 'Redro PDF Converter',
                   ),
-                  if (_error != null)
-                    MaterialBanner(
-                      content: Text(_error!),
-                      leading: const Icon(Icons.error_outline_rounded),
-                      actions: [
-                        TextButton(
-                          onPressed: () => setState(() => _error = null),
-                          child: Text(_text('Dismiss', 'إغلاق')),
-                        ),
-                      ],
+                ),
+                const SizedBox(height: 18),
+                Text(
+                  _text('Convert PDF to an editable file', 'حوّل PDF إلى ملف قابل للتحرير'),
+                  textAlign: TextAlign.center,
+                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w800),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  _text('Choose the format you need. Your PDF stays on this device.', 'اختر الصيغة المطلوبة. يبقى ملف PDF على هذا الجهاز.'),
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: scheme.onSurfaceVariant),
+                ),
+                const SizedBox(height: 22),
+                _formatCard(
+                  format: _ExportFormat.word,
+                  icon: Icons.description_rounded,
+                  title: _text('PDF to Word', 'PDF إلى Word'),
+                  description: _text('Extract text into an editable .docx document', 'استخراج النص إلى مستند Word قابل للتحرير'),
+                  color: const Color(0xFF185ABD),
+                ),
+                _formatCard(
+                  format: _ExportFormat.excel,
+                  icon: Icons.table_chart_rounded,
+                  title: _text('PDF to Excel', 'PDF إلى Excel'),
+                  description: _text('Put extracted lines into editable spreadsheet rows', 'وضع الأسطر المستخرجة في صفوف جدول قابلة للتحرير'),
+                  color: const Color(0xFF188038),
+                ),
+                const SizedBox(height: 12),
+                Container(
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: scheme.surfaceContainerHighest,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    _text(
+                      'Text in the PDF is extracted locally. The Word layout may differ from the original. Excel receives one extracted text line per row; tables are not automatically reconstructed. Scanned-image pages need OCR, which is not included yet.',
+                      'يُستخرج النص محليًا. قد يختلف تنسيق Word عن الأصل. يضع Excel كل سطر مستخرج في صف؛ ولا يعيد بناء الجداول تلقائيًا. الصفحات المصوّرة تحتاج OCR، وهي غير متاحة حاليًا.',
                     ),
-                  Expanded(child: _buildReader(document)),
+                    style: TextStyle(color: scheme.onSurfaceVariant),
+                  ),
+                ),
+                if (_busy) ...[
+                  const SizedBox(height: 22),
+                  const LinearProgressIndicator(),
+                  const SizedBox(height: 10),
+                  Text(_status ?? _text('Working…', 'جارٍ العمل…'), textAlign: TextAlign.center),
+                ] else if (_status != null) ...[
+                  const SizedBox(height: 18),
+                  Text(_status!, textAlign: TextAlign.center, style: TextStyle(color: scheme.primary, fontWeight: FontWeight.w700)),
                 ],
-              ),
-        floatingActionButton: document == null
-            ? null
-            : FloatingActionButton.small(
-                tooltip: _text('Open another PDF', 'فتح ملف آخر'),
-                onPressed: _busy ? null : _openPdf,
-                child: const Icon(Icons.add_rounded),
-              ),
+                if (_error != null) ...[
+                  const SizedBox(height: 16),
+                  Text(_error!, textAlign: TextAlign.center, style: TextStyle(color: scheme.error)),
+                ],
+                const SizedBox(height: 20),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }

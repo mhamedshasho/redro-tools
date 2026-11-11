@@ -3,33 +3,34 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:redro_pdf/main.dart';
 
 void main() {
-  testWidgets('home screen presents the local PDF reader', (tester) async {
+  testWidgets('home screen offers Word and Excel conversion choices',
+      (tester) async {
     await tester.pumpWidget(const RedroPdfApp());
 
     expect(find.text('Redro PDF'), findsOneWidget);
-    expect(find.text('Your PDFs, ready to read.'), findsOneWidget);
-    expect(find.text('Open PDF'), findsOneWidget);
-    expect(
-      find.text('Open documents stored on this device. Your files are not uploaded.'),
-      findsOneWidget,
-    );
+    expect(find.text('Convert PDF to an editable file'), findsOneWidget);
+    expect(find.text('PDF to Word'), findsOneWidget);
+    expect(find.text('PDF to Excel'), findsOneWidget);
+    expect(find.text('Text in the PDF is extracted locally.'), findsNothing);
   });
 
-  testWidgets('language control switches the reader copy to Arabic', (tester) async {
+  testWidgets('language control switches converter labels to Arabic',
+      (tester) async {
     await tester.pumpWidget(const RedroPdfApp());
 
     await tester.tap(find.text('العربية'));
     await tester.pumpAndSettle();
 
-    expect(find.text('ملفات PDF جاهزة للقراءة.'), findsOneWidget);
-    expect(find.text('فتح ملف PDF'), findsOneWidget);
+    expect(find.text('حوّل PDF إلى ملف قابل للتحرير'), findsOneWidget);
+    expect(find.text('PDF إلى Word'), findsOneWidget);
+    expect(find.text('PDF إلى Excel'), findsOneWidget);
     expect(
       tester.widget<Directionality>(find.byType(Directionality).last).textDirection,
       TextDirection.rtl,
     );
   });
 
-  testWidgets('appearance control cycles from system to dark and light',
+  testWidgets('appearance control toggles dark and light themes',
       (tester) async {
     await tester.pumpWidget(const RedroPdfApp());
 
