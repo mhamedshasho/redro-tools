@@ -7,12 +7,13 @@ This repository currently contains the local PDF reader milestone for Android an
 - Local PDF selection using the platform file picker.
 - Multiple open document tabs.
 - PDF rendering, page count, previous/next navigation, and direct page-number navigation.
+- Rotate the current page in 90-degree increments and save a separate edited PDF copy using the Syncfusion PDF engine. The original document is never overwritten.
 - Android pinch zoom; the standard PDF view is used on Windows because the `pdfx` pinch viewer is not supported there.
 - English/Arabic interface copy with RTL/LTR direction switching.
 - Light/dark appearance switching.
 - No account, document upload, or cloud-storage flow.
 
-There is no PDF editing/writing, highlights, text selection, notes, drawing, signatures, page operations, merging/splitting, DOCX/XLSX conversion, OCR, update checking/downloading, or stable release signing. The widget tests do not open real PDFs. Do not advertise these capabilities as available.
+Other editing features are not implemented yet: text selection, persistent highlights/underline/strike-through, notes, drawing, signatures, page reorder/delete/extract, merging/splitting, DOCX/XLSX conversion, OCR, update checking/downloading, and stable release signing. Page rotation and saving a separate rotated copy are the first editing operations added; they still require successful CI and real-file verification. The widget tests do not open real PDFs. Do not advertise these capabilities as available.
 
 ## Android APKs
 
