@@ -11,38 +11,38 @@
   <div id="app">
     <header class="topbar">
       <a class="brand" href="./"><span class="mark">R</span><span>REDRO <b>PDF TO WORD</b></span></a>
-      <span class="privacy"><i></i> LOCAL PROCESSING</span>
+      <div class="top-actions"><span class="privacy"><i></i><span data-i18n="local">LOCAL PROCESSING</span></span><button id="languageButton" class="language-button" type="button">العربية</button></div>
     </header>
     <main>
       <section class="hero">
-        <div class="eyebrow">OFFLINE DOCUMENT CONVERTER</div>
-        <h1>PDF to Word.<br><span>Made simple.</span></h1>
-        <p>Convert your documents into editable Word files. Your files stay on your device.</p>
+        <div class="eyebrow" data-i18n="eyebrow">OFFLINE DOCUMENT CONVERTER</div>
+        <h1><span data-i18n="headline">PDF to Word.</span><br><span data-i18n="headlineAccent">Made simple.</span></h1>
+        <p data-i18n="intro">Convert your documents into editable Word files. Your files stay on your device.</p>
       </section>
       <section class="workspace">
         <div id="dropzone" class="dropzone">
           <div class="file-icon">PDF</div>
-          <h2>Choose a PDF file</h2>
-          <p>Drag and drop a document here, or browse your device.</p>
-          <label class="choose">Choose PDF<input id="fileInput" type="file" accept="application/pdf,.pdf"></label>
-          <div id="fileName" class="file-name">No file selected</div>
+          <h2 data-i18n="chooseTitle">Choose a PDF file</h2>
+          <p data-i18n="dropHint">Drag and drop a document here, or browse your device.</p>
+          <label class="choose"><span data-i18n="browse">Choose PDF</span><input id="fileInput" type="file" accept="application/pdf,.pdf"></label>
+          <div id="fileName" class="file-name" data-i18n="noFile">No file selected</div>
         </div>
         <div class="options">
-          <div><strong>Output format</strong><span>Microsoft Word (.docx)</span></div>
-          <div><strong>Processing</strong><span>On this device · Offline</span></div>
+          <div><strong data-i18n="outputFormat">Output format</strong><span>Microsoft Word (.docx)</span></div>
+          <div><strong data-i18n="processing">Processing</strong><span data-i18n="onDevice">On this device · Offline</span></div>
         </div>
-        <button id="convertButton" class="convert" disabled>Convert to Word <span>→</span></button>
-        <div id="status" class="status" role="status">Select a PDF to begin.</div>
+        <button id="convertButton" class="convert" disabled><span data-i18n="convert">Convert to Word</span> <span>→</span></button>
+        <div id="status" class="status" role="status" data-i18n="selectStart">Select a PDF to begin.</div>
         <div id="result" class="result" hidden></div>
       </section>
       <section class="features">
-        <article><b>01</b><h3>Private by design</h3><p>Documents are processed in your browser. No upload server.</p></article>
-        <article><b>02</b><h3>Works offline</h3><p>Install the app once, then convert locally without a connection.</p></article>
-        <article><b>03</b><h3>Editable DOCX</h3><p>Extracted text is rebuilt as editable Word paragraphs.</p></article>
+        <article><b>01</b><h3 data-i18n="privateTitle">Private by design</h3><p data-i18n="privateText">Documents are processed in your browser. No upload server.</p></article>
+        <article><b>02</b><h3 data-i18n="offlineTitle">Works offline</h3><p data-i18n="offlineText">Install the app once, then convert locally without a connection.</p></article>
+        <article><b>03</b><h3 data-i18n="editableTitle">Editable DOCX</h3><p data-i18n="editableText">Extracted text is rebuilt as editable Word paragraphs.</p></article>
       </section>
-      <p class="notice">Complex layouts, scanned pages, and exact positioning may need manual adjustment. OCR support is not included in this web build.</p>
+      <p class="notice" data-i18n="notice">Complex layouts, scanned pages, and exact positioning may need manual adjustment. OCR support is not included in this web build.</p>
     </main>
-    <footer><span>REDRO PDF TO WORD</span><span>Free · Offline · Private</span></footer>
+    <footer><span>REDRO PDF TO WORD</span><span data-i18n="footer">Free · Offline · Private</span></footer>
   </div>
   <script type="module" src="/src/main.js"></script>
 </body>
