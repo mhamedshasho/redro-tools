@@ -1,5 +1,13 @@
 name: Build Windows EXE
 on:
+  push:
+    branches: [main]
+    paths:
+      - "desktop/**"
+      - "core/**"
+      - "scripts/build_windows.ps1"
+      - "requirements-desktop.txt"
+      - ".github/workflows/windows-build.yml"
   workflow_dispatch:
 permissions:
   contents: read
@@ -18,3 +26,4 @@ jobs:
         with:
           name: Redro-PDF-to-Word-Windows
           path: dist/Redro PDF to Word/
+          if-no-files-found: error
